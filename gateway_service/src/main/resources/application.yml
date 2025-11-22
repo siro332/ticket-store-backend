@@ -1,0 +1,50 @@
+server:
+  port: 8080
+
+jwt:
+  secret: U6lM6J1Pk2F7kUdfxNnN8amA0J8G9A7Lz41aHwD9W7T1J6jUuV9C8qA4eR7mA6K8N2mO8yT9Z5D3sQ==
+
+spring:
+  cloud:
+    gateway:
+
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials
+
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+
+      routes:
+
+        - id: auth-service
+          uri: http://auth-service:8081
+          predicates:
+            - Path=/auth/**
+
+        - id: event-service
+          uri: http://event-service:8082
+          predicates:
+            - Path=/events/**
+
+        - id: order-service
+          uri: http://order-service:8083
+          predicates:
+            - Path=/orders/**
+
+        - id: payment-service
+          uri: http://payment-service:8084
+          predicates:
+            - Path=/payments/**
+
+        # Routes cần JWT
+        - id: secure
+          uri: http://order-service:8083
+          predicates:
+            - Path=/secure/**
+          filters:
+            - StripPrefix=1
+            - JwtAuthFilter
