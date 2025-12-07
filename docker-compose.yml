@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ticket-store-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password # Change this to a strong password
+      MYSQL_DATABASE: ticket_store_db
+      MYSQL_USER: ticket_user
+      MYSQL_PASSWORD: ticket_password # Change this to a strong password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
