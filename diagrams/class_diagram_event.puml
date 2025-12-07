@@ -1,0 +1,83 @@
+@startuml
+!theme plain
+hide circle
+skinparam linetype ortho
+
+class Event {
+    Long id
+    UUID organizerId
+    String name
+    String description
+    String category
+    LocalDateTime startTime
+    LocalDateTime endTime
+    Venue venue
+    String coverImage
+    EventStatus status
+    Boolean allowTicketTransfer
+    Boolean allowAttendeeNameChange
+    Boolean refundEnabled
+    Integer refundDeadlineHours
+    Double refundFeePercent
+    LocalDateTime createdAt
+    LocalDateTime updatedAt
+}
+
+class Venue {
+    Long id
+    String name
+    String address
+    String city
+    Integer capacity
+    String mapImage
+}
+
+class TicketType {
+    Long id
+    String name
+    Event event
+    BigDecimal price
+    Integer quota
+    Integer purchaseLimit
+    LocalDateTime startSale
+    LocalDateTime endSale
+}
+
+class Seat {
+    Long id
+    String section
+    String rowLabel
+    String seatNumber
+    String seatCategory
+    Boolean isAvailable
+    Boolean locked
+    Event event
+    TicketType ticketType
+}
+
+class Discount {
+    Long id
+    String code
+    Integer discountPercent
+    BigDecimal discountAmount
+    BigDecimal minimumOrderAmount
+    Integer usageLimit
+    Integer usedCount
+    LocalDateTime validFrom
+    LocalDateTime validTo
+    Event event
+}
+
+Event "1" *-- "0..*" TicketType
+Event "1" *-- "0..*" Seat
+Event "1" *-- "0..*" Discount
+Event "0..*" -- "1" Venue : has >
+
+TicketType "1" o-- "0..*" Seat : has >
+
+enum EventStatus {
+    DRAFT
+    PUBLISHED
+    CANCELLED
+}
+@enduml

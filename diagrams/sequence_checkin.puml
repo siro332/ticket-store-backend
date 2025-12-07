@@ -1,0 +1,32 @@
+@startuml
+!theme plain
+actor Staff
+participant "API Gateway" as Gateway
+participant "Order Service" as Order
+database "Order DB" as OrderDB
+
+Staff -> Gateway : POST /api/tickets/{ticketCode}/scan?gate=X&deviceId=Y
+activate Gateway
+Gateway -> Order : scanTicket(ticketCode, gate, deviceId)
+activate Order
+Order -> OrderDB : Read Ticket by ticketCode
+activate OrderDB
+OrderDB --> Order : Ticket Details
+deactivate OrderDB
+Order -> Order : Validate Ticket Status (e.g., ISSUED)
+Order -> Order : Check for duplicate scan
+alt Ticket is Valid and not SCANNED
+    Order -> OrderDB : Update Ticket Status to SCANNED
+    Order -> OrderDB : Create CheckInLog(ticket, event, user, time, gate, deviceId)
+    activate OrderDB
+    OrderDB --> Order : Confirmation
+    deactivate OrderDB
+    Order --> Gateway : TicketResponse (SCANNED)
+    Gateway --> Staff : HTTP 200 OK / TicketResponse
+else Ticket is already SCANNED or REFUNDED/INVALID
+    Order --> Gateway : Error: Ticket already scanned / Invalid / Refunded
+    Gateway --> Staff : HTTP 500 Internal Server Error (or 400 Bad Request if validation is before 500)
+end
+deactivate Order
+deactivate Gateway
+@enduml

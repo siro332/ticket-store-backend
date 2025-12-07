@@ -1,0 +1,81 @@
+@startuml
+!theme plain
+hide circle
+skinparam linetype ortho
+
+entity "events" {
+    *id : BIGINT <<PK>>
+    --
+    organizer_id : BINARY(16)
+    venue_id : BIGINT <<FK>>
+    name : VARCHAR(255)
+    description : TEXT
+    category : VARCHAR(100)
+    start_time : DATETIME
+    end_time : DATETIME
+    cover_image : VARCHAR(255)
+    status : VARCHAR(50)
+    allow_ticket_transfer : BOOLEAN
+    allow_attendee_name_change : BOOLEAN
+    refund_enabled : BOOLEAN
+    refund_deadline_hours : INT
+    refund_fee_percent : DECIMAL(5,2)
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+entity "ticket_types" {
+    *id : BIGINT <<PK>>
+    --
+    event_id : BIGINT <<FK>>
+    name : VARCHAR(255)
+    price : DECIMAL(10,2)
+    quota : INT
+    purchase_limit : INT
+    start_sale : DATETIME
+    end_sale : DATETIME
+}
+
+entity "venues" {
+    *id : BIGINT <<PK>>
+    --
+    name : VARCHAR(255)
+    address : VARCHAR(255)
+    city : VARCHAR(100)
+    capacity : INT
+    map_image : VARCHAR(255)
+}
+
+entity "seats" {
+    *id : BIGINT <<PK>>
+    --
+    event_id : BIGINT <<FK>>
+    ticket_type_id : BIGINT <<FK>>
+    section : VARCHAR(50)
+    row_label : VARCHAR(50)
+    seat_number : VARCHAR(50)
+    seat_category : VARCHAR(100)
+    is_available : BOOLEAN
+    locked : BOOLEAN
+}
+
+entity "discounts" {
+    *id : BIGINT <<PK>>
+    --
+    event_id : BIGINT <<FK>>
+    code : VARCHAR(255)
+    discount_percent : INT
+    discount_amount : DECIMAL(10,2)
+    minimum_order_amount : DECIMAL(10,2)
+    usage_limit : INT
+    used_count : INT
+    valid_from : DATETIME
+    valid_to : DATETIME
+}
+
+events ||..o{ ticket_types
+events ||..o{ seats
+events ||..o{ discounts
+venues ||--o{ events
+ticket_types ||--o{ seats
+@enduml
