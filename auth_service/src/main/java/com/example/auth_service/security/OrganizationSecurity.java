@@ -2,8 +2,9 @@ package com.example.auth_service.security;
 
 import com.example.auth_service.model.User;
 import com.example.auth_service.model.UserOrganizationRole;
+import com.example.auth_service.repository.UserOrganizationRoleRepository;
 import com.example.auth_service.service.OrganizationService;
-import com.example.auth_service.service.UserService; // Assuming a UserService exists or will be created
+import com.example.auth_service.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,7 +18,8 @@ import java.util.UUID;
 public class OrganizationSecurity {
 
     private final OrganizationService organizationService;
-    private final UserService userService; // Assuming a UserService to get User by email/ID
+    private final UserService userService;
+    private final UserOrganizationRoleRepository userOrganizationRoleRepository; // Inject UserOrganizationRoleRepository
 
     public boolean isMemberOfOrganization(UUID organizationId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -25,8 +27,8 @@ public class OrganizationSecurity {
             return false;
         }
 
-        String userEmail = authentication.getName(); // Assuming email is the principal name
-        Optional<User> userOptional = userService.getUserByEmail(userEmail); // Need a method in UserService
+        String userEmail = authentication.getName();
+        Optional<User> userOptional = userService.getUserByEmail(userEmail);
         if (userOptional.isEmpty()) {
             return false;
         }
@@ -68,7 +70,7 @@ public class OrganizationSecurity {
         }
         User currentUser = userOptional.get();
 
-        Optional<UserOrganizationRole> uorOptional = userOrganizationRoleRepository.findById(userOrganizationRoleId); // Need to inject UOR repo
+        Optional<UserOrganizationRole> uorOptional = userOrganizationRoleRepository.findById(userOrganizationRoleId);
         if (uorOptional.isEmpty()) {
             return false;
         }

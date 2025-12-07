@@ -1,10 +1,7 @@
 package com.example.auth_service.service;
 
-import com.example.auth_service.model.Organization;
-import com.example.auth_service.model.OrganizationStatus;
-import com.example.auth_service.model.Role;
-import com.example.auth_service.model.User;
-import com.example.auth_service.model.UserOrganizationRole;
+import com.example.auth_service.dto.OrganizationResponse;
+import com.example.auth_service.model.*;
 import com.example.auth_service.repository.OrganizationRepository;
 import com.example.auth_service.repository.RoleRepository;
 import com.example.auth_service.repository.UserOrganizationRoleRepository;
@@ -39,7 +36,7 @@ public class OrganizationService {
     }
 
     @Transactional
-    public Organization createOrganization(Organization organization, UUID ownerUserId) {
+    public OrganizationResponse createOrganization(Organization organization, UUID ownerUserId) {
         User owner = userRepository.findById(ownerUserId)
                 .orElseThrow(() -> new RuntimeException("Owner user not found with id: " + ownerUserId));
         organization.setOwner(owner);
@@ -57,7 +54,7 @@ public class OrganizationService {
                 .build();
         userOrganizationRoleRepository.save(userOrgRole);
 
-        return savedOrganization;
+        return OrganizationResponse.fromEntity(savedOrganization); // Convert to DTO
     }
 
     @Transactional
@@ -91,7 +88,7 @@ public class OrganizationService {
                 .orElseThrow(() -> new RuntimeException("Role not found with id: " + roleId));
 
         // Check if user already has a role in this organization
-        userOrganizationRoleRepository.findByUserIdAndOrganizationId(userId, organizationId)
+        userOrganizationRoleRepository.findByUserIdAndOrganizationId(userId, organizationId).stream().findFirst()
                 .ifPresent(r -> { throw new RuntimeException("User already has a role in this organization."); });
 
         UserOrganizationRole userOrgRole = UserOrganizationRole.builder()

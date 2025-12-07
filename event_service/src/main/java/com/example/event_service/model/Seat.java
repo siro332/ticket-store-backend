@@ -18,7 +18,9 @@ public class Seat {
     private String section;   // Khu vực (A, B, C...)
     private String rowLabel;  // Hàng (A, B, C)
     private String seatNumber;// Số ghế (01, 02,...)
+    private String seatCategory; // Loại ghế (e.g., VIP, Standard)
     private Boolean isAvailable; // true = còn trống
+    private Boolean locked;      // true = ghế bị khóa (không thể bán)
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id")
@@ -28,4 +30,3 @@ public class Seat {
     @JoinColumn(name = "ticket_type_id")
     private TicketType ticketType;
 }
-

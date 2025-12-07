@@ -2,8 +2,9 @@ package com.example.event_service.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "events")
@@ -17,7 +18,8 @@ public class Event {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long organizerId;  // liên kết với AuthService (User/Organization)
+    @Column(columnDefinition = "BINARY(16)")
+    private UUID organizerId;  // liên kết với AuthService (User/Organization)
     private String name;
 
     @Column(columnDefinition = "TEXT")
@@ -36,6 +38,18 @@ public class Event {
     @Enumerated(EnumType.STRING)
     private Status status;
 
+    @Builder.Default
+    private Boolean allowTicketTransfer = false; // New field
+    @Builder.Default
+    private Boolean allowAttendeeNameChange = false; // New field
+    
+    @Builder.Default
+    private Boolean refundEnabled = false;
+    @Builder.Default
+    private Integer refundDeadlineHours = 24; // Default 24 hours before event
+    @Builder.Default
+    private Double refundFeePercent = 0.0;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -44,6 +58,11 @@ public class Event {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
         if (status == null) status = Status.DRAFT;
+        if (allowTicketTransfer == null) allowTicketTransfer = false;
+        if (allowAttendeeNameChange == null) allowAttendeeNameChange = false;
+        if (refundEnabled == null) refundEnabled = false;
+        if (refundDeadlineHours == null) refundDeadlineHours = 24;
+        if (refundFeePercent == null) refundFeePercent = 0.0;
     }
 
     @PreUpdate
@@ -55,4 +74,3 @@ public class Event {
         DRAFT, PUBLISHED, CANCELLED
     }
 }
-

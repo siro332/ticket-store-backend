@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.security.Key;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Component
@@ -55,17 +57,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     .getBody();
 
             String email = claims.getSubject();
-            List<String> roles = claims.get("roles", List.class);
+            String idString = claims.get("id", String.class); // Extract UUID as String
+            UUID userId = UUID.fromString(idString); // Convert to UUID
+            
+            // Correctly parse roles from claims
+            List<Map<String, String>> rolesFromClaims = claims.get("roles", List.class);
+            
+            if (email != null && userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                var authorities = rolesFromClaims == null ? List.of() :
+                        rolesFromClaims.stream()
+                                .filter(roleMap -> roleMap != null && roleMap.containsKey("authority") && roleMap.get("authority") != null) // Add null checks
+                                .map(roleMap -> new SimpleGrantedAuthority(roleMap.get("authority"))) // Extract "authority" field
+                                .collect(Collectors.toList());
 
-            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                var authorities = roles == null ? List.of() :
-                        roles.stream().map(r -> new SimpleGrantedAuthority("ROLE_" + r)).collect(Collectors.toList());
-
-                var authToken = new UsernamePasswordAuthenticationToken((Object) email, (Object) null, (Collection<? extends GrantedAuthority>) authorities);
+                // Use UserPrincipal as the principal object and store the raw JWT
+                UserPrincipal userPrincipal = new UserPrincipal(userId, email, jwt); // Store the raw JWT token
+                
+                var authToken = new UsernamePasswordAuthenticationToken(userPrincipal, null, (Collection<? extends GrantedAuthority>) authorities);
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }
-        } catch (Exception ignored) {
+        } catch (Exception ex) {
+            // Token sai hoặc hết hạn => bỏ qua, không ném lỗi
+            System.err.println("JWT Validation Error in Order Service: " + ex.getMessage());
         }
 
         filterChain.doFilter(request, response);

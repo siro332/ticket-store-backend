@@ -2,7 +2,9 @@ package com.example.order_service.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.math.BigDecimal;
+import java.util.List;
 
 @Entity
 @Table(name = "order_items")
@@ -21,7 +23,9 @@ public class OrderItem {
     private Order order;
 
     private Long ticketTypeId;
-    private Integer quantity;
+    // Removed 'quantity' field as it's now derived from the number of associated Tickets
     private BigDecimal price;
-}
 
+    @OneToMany(mappedBy = "orderItem", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Ticket> tickets;
+}

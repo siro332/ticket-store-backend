@@ -9,6 +9,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
@@ -22,11 +24,15 @@ import java.io.IOException;
 import java.security.Key;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class); // Logger instance
 
     @Value("${jwt.secret}")
     private String secret;
@@ -42,14 +48,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
+        String path = request.getRequestURI();
+        log.debug("Processing request to {} with path: {}", request.getRequestURI(), path); // Log path
+
         String authHeader = request.getHeader("Authorization");
+        log.debug("Processing request to {} with Authorization header: {}", request.getRequestURI(), authHeader != null ? "Present" : "Missing");
+        if (authHeader != null) {
+            log.debug("Full Authorization Header: {}", authHeader);
+        }
+
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            log.debug("No Bearer token found or malformed header. Allowing request to proceed anonymously.");
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
             String jwt = authHeader.substring(7);
+            log.debug("Extracted JWT string (first 50 chars): {}", jwt.length() > 50 ? jwt.substring(0, 50) + "..." : jwt);
+
             Claims claims = Jwts.parserBuilder()
                     .setSigningKey(getSignKey())
                     .build()
@@ -57,24 +74,49 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     .getBody();
 
             String email = claims.getSubject();
-            List<String> roles = claims.get("roles", List.class);
-
-            if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                var authorities = roles == null ? List.of() :
-                        roles.stream()
-                                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+            String idString = claims.get("id", String.class); // Extract UUID as String
+            UUID userId = UUID.fromString(idString); // Convert to UUID
+            
+            // Correctly parse roles from claims
+            List<Map<String, String>> rolesFromClaims = claims.get("roles", List.class); // Get as List of Maps
+            
+            if (email != null && userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                var authorities = rolesFromClaims == null ? List.of() :
+                        rolesFromClaims.stream()
+                                .filter(roleMap -> {
+                                    if (roleMap == null) {
+                                        log.warn("JWT roleMap is null. Filtering out.");
+                                        return false;
+                                    }
+                                    if (!roleMap.containsKey("authority")) {
+                                        log.warn("JWT roleMap {} does not contain 'authority' key. Filtering out.", roleMap);
+                                        return false;
+                                    }
+                                    if (roleMap.get("authority") == null) {
+                                        log.warn("JWT roleMap {} has null 'authority' value. Filtering out.", roleMap);
+                                        return false;
+                                    }
+                                    log.debug("Processing roleMap: {} with authority: {}", roleMap, roleMap.get("authority"));
+                                    return true;
+                                })
+                                .map(roleMap -> new SimpleGrantedAuthority(roleMap.get("authority"))) // Extract "authority" field
                                 .collect(Collectors.toList());
 
+                // Use UserPrincipal as the principal object and store the raw JWT
+                UserPrincipal userPrincipal = new UserPrincipal(userId, email, jwt);
+                
                 UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken((Object) email, (Object) null, (Collection<? extends GrantedAuthority>) authorities);
+                        new UsernamePasswordAuthenticationToken(userPrincipal, null, (Collection<? extends GrantedAuthority>) authorities);
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+                log.debug("SecurityContextHolder populated for user: {} with ID: {}", email, userId);
+            } else {
+                log.debug("Email or userId is null, or SecurityContextHolder already populated. Email: {}, userId: {}", email, userId);
             }
 
         } catch (Exception ex) {
-            // Token sai hoặc hết hạn => bỏ qua, không ném lỗi
-            // response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT");
+            log.warn("JWT processing failed: {}", ex.getMessage(), ex);
         }
 
         filterChain.doFilter(request, response);

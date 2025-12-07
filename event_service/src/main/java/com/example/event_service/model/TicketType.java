@@ -2,6 +2,7 @@ package com.example.event_service.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -25,6 +26,7 @@ public class TicketType {
 
     private BigDecimal price;
     private Integer quota;
+    private Integer purchaseLimit; // New field: Max tickets per user
     private LocalDateTime startSale;
     private LocalDateTime endSale;
 }

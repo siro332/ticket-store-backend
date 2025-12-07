@@ -1,29 +1,18 @@
 package com.example.auth_service.controller;
 
-import com.example.auth_service.dto.JwtResponse;
-import com.example.auth_service.dto.LoginRequest;
-import com.example.auth_service.dto.SignupRequest;
-import com.example.auth_service.service.AuthService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')") // Only ADMINs can access these endpoints
 public class AdminController {
-    private final AuthService authService;
-
-    @PostMapping("/create-organizer")
-    public ResponseEntity<?> registerStaff(@RequestBody SignupRequest request) {
-        authService.registerUser(request, "ORGANIZER");
-        return ResponseEntity.ok("Registration successful");
-    }
-
-    @PostMapping("/create-admin")
-    public ResponseEntity<?> registerAdmin(@RequestBody SignupRequest request) {
-        authService.registerUser(request, "ADMIN");
-        return ResponseEntity.ok("Registration successful");
-    }
+    // This controller can be used for other admin-specific tasks,
+    // but user/role creation is now handled through AuthService and OrganizationService.
+    // The previous methods for creating organizers and admins are removed
+    // as they relied on a global role assignment mechanism that has been replaced
+    // by organization-specific roles.
 }
-

@@ -3,15 +3,16 @@ package com.example.auth_service.service;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
-import jakarta.annotation.PostConstruct;
-import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -31,10 +32,10 @@ public class JwtService {
 
     @PostConstruct
     public void init() {
-        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        byte[] keyBytes = Decoders.BASE64.decode(secret);
         if (keyBytes.length < 32) {
             throw new IllegalStateException(
-                    "JWT secret must be at least 32 bytes. Current: " + keyBytes.length);
+                    "JWT secret must be at least 32 bytes (after Base64 decoding). Current: " + keyBytes.length);
         }
         this.signKey = Keys.hmacShaKeyFor(keyBytes);
         System.out.println("JWT key length (bits): " + (signKey.getEncoded().length * 8));
@@ -43,16 +44,36 @@ public class JwtService {
     // ===== Access / Refresh token =====
 
     public String generateAccessToken(UserDetails userDetails) {
+        // Assume UserDetailsAdapter is used and has a getUser() method
+        // to retrieve the underlying User entity with its ID
+        if (!(userDetails instanceof com.example.auth_service.adapter.UserDetailsAdapter)) {
+            throw new IllegalArgumentException("UserDetails must be UserDetailsAdapter to generate token with ID");
+        }
+        com.example.auth_service.model.User user = ((com.example.auth_service.adapter.UserDetailsAdapter) userDetails).getUser();
+
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("roles", userDetails.getAuthorities());
+        claims.put("id", user.getId().toString()); // Add user ID as a claim (convert UUID to String)
+
         return generateToken(
-                Map.of("roles", userDetails.getAuthorities()),
+                claims,
                 userDetails.getUsername(),
                 accessTokenExpirationMs
         );
     }
 
     public String generateRefreshToken(UserDetails userDetails) {
+        if (!(userDetails instanceof com.example.auth_service.adapter.UserDetailsAdapter)) {
+            throw new IllegalArgumentException("UserDetails must be UserDetailsAdapter for refresh token");
+        }
+        com.example.auth_service.model.User user = ((com.example.auth_service.adapter.UserDetailsAdapter) userDetails).getUser();
+
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("type", "refresh");
+        claims.put("id", user.getId().toString()); // Add user ID as a claim
+
         return generateToken(
-                Map.of("type", "refresh"),
+                claims,
                 userDetails.getUsername(),
                 refreshTokenExpirationMs
         );

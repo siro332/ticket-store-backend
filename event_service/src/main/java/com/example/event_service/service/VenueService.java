@@ -4,6 +4,7 @@ import com.example.event_service.model.Venue;
 import com.example.event_service.repository.VenueRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
 import java.util.List;
 
 @Service

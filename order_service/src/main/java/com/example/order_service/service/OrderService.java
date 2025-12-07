@@ -1,57 +1,215 @@
 package com.example.order_service.service;
 
+import com.example.order_service.dto.*;
+import com.example.order_service.feign_client.EventServiceClient;
+import com.example.order_service.feign_client.PaymentServiceClient;
+import com.example.order_service.model.*;
 import com.example.order_service.repository.OrderItemRepository;
 import com.example.order_service.repository.OrderRepository;
-import com.example.order_service.dto.OrderRequest;
-import com.example.order_service.dto.OrderResponse;
-import com.example.order_service.model.*;
+import com.example.order_service.repository.PaymentInfoRepository;
+import com.example.order_service.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.List;
+import java.time.LocalDateTime;
+import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
+    private final PaymentInfoRepository paymentInfoRepository;
+    private final TicketRepository ticketRepository;
+    private final ReservationService reservationService;
+    private final TicketService ticketService;
+    private final EmailService emailService;
+    private final EventServiceClient eventServiceClient;
+    private final PaymentServiceClient paymentServiceClient;
 
     @Transactional
     public OrderResponse createOrder(OrderRequest request) {
-        BigDecimal total = request.getItems().stream()
-                .map(i -> BigDecimal.valueOf(i.getPrice()).multiply(BigDecimal.valueOf(i.getQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // 1. Validate and process reservations
+        List<Reservation> reservations = new ArrayList<>();
+        if (request.getReservationIds() != null && !request.getReservationIds().isEmpty()) {
+            for (Long resId : request.getReservationIds()) {
+                Reservation reservation = reservationService.getReservationById(resId)
+                        .orElseThrow(() -> new RuntimeException("Reservation not found: " + resId));
+                if (reservation.getStatus() != Reservation.ReservationStatus.PENDING || reservation.getExpireAt().isBefore(LocalDateTime.now())) {
+                    throw new RuntimeException("Reservation " + resId + " is not valid for order (expired or not pending).");
+                }
+                reservations.add(reservation);
+            }
+        } else if (request.getItems() == null || request.getItems().isEmpty()) {
+            throw new RuntimeException("Order must contain either reservations or direct order items.");
+        }
 
+        // 2. Calculate total amount and prepare order items/tickets
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        Map<Long, OrderItem> orderItemMap = new HashMap<>(); // Map to group tickets by ticketType
+        List<Ticket> ticketsToSave = new ArrayList<>();
+
+        // Process reservations first
+        for (Reservation res : reservations) {
+            // Confirm the reservation
+            reservationService.confirmReservation(res.getId());
+
+            // Create or update OrderItem for this ticketType
+            OrderItem orderItem = orderItemMap.computeIfAbsent(res.getTicketTypeId(), k ->
+                    OrderItem.builder()
+                            .ticketTypeId(res.getTicketTypeId())
+                            .price(BigDecimal.ZERO) // Price will be updated later
+                            .tickets(new ArrayList<>())
+                            .build()
+            );
+
+            // Create a Ticket for each reserved seat
+            Ticket ticket = Ticket.builder()
+                    .seatId(res.getSeatId())
+                    .ticketCode(UUID.randomUUID().toString()) // Generate unique ticket code
+                    .status(Ticket.TicketStatus.ISSUED)
+                    .orderItem(orderItem) // Link to orderItem
+                    .build();
+            ticketsToSave.add(ticket);
+            orderItem.getTickets().add(ticket);
+
+            // Assuming price comes from the reservation or an external service
+            // For now, let's assume a placeholder price per ticket type
+            // In a real scenario, you'd fetch the actual TicketType price from event_service
+            BigDecimal ticketPrice = BigDecimal.valueOf(100.00); // Placeholder
+            orderItem.setPrice(ticketPrice); // Set price for the order item
+            totalAmount = totalAmount.add(ticketPrice);
+        }
+
+        // Handle direct order items if no reservations were used (e.g., general admission)
+        if (request.getReservationIds() == null || request.getReservationIds().isEmpty()) {
+            for (OrderRequest.OrderItemRequest itemRequest : request.getItems()) {
+                OrderItem orderItem = orderItemMap.computeIfAbsent(itemRequest.getTicketTypeId(), k ->
+                        OrderItem.builder()
+                                .ticketTypeId(itemRequest.getTicketTypeId())
+                                .price(BigDecimal.valueOf(itemRequest.getPrice()))
+                                .tickets(new ArrayList<>())
+                                .build()
+                );
+                totalAmount = totalAmount.add(BigDecimal.valueOf(itemRequest.getPrice()).multiply(BigDecimal.valueOf(itemRequest.getQuantity())));
+
+                for (int i = 0; i < itemRequest.getQuantity(); i++) {
+                    Ticket ticket = Ticket.builder()
+                            .seatId(itemRequest.getSeatIds() != null && i < itemRequest.getSeatIds().size() ? itemRequest.getSeatIds().get(i) : null)
+                            .ticketCode(UUID.randomUUID().toString())
+                            .status(Ticket.TicketStatus.ISSUED)
+                            .orderItem(orderItem)
+                            .build();
+                    ticketsToSave.add(ticket);
+                    orderItem.getTickets().add(ticket);
+                }
+            }
+        }
+
+
+        // 3. Apply discount
+        DiscountDto appliedDiscount = null;
+        if (request.getDiscountCode() != null && !request.getDiscountCode().isEmpty()) {
+            DiscountDto discount = eventServiceClient.validateDiscountCode(request.getEventId(), request.getDiscountCode())
+                    .orElseThrow(() -> new RuntimeException("Invalid or expired discount code."));
+
+            // Validate discount conditions
+            if (discount.getValidFrom() != null && discount.getValidFrom().isAfter(LocalDateTime.now())) {
+                throw new RuntimeException("Discount code is not yet active.");
+            }
+            if (discount.getValidTo() != null && discount.getValidTo().isBefore(LocalDateTime.now())) {
+                throw new RuntimeException("Discount code has expired.");
+            }
+            if (discount.getUsageLimit() != null && discount.getUsedCount() != null && discount.getUsedCount() >= discount.getUsageLimit()) {
+                throw new RuntimeException("Discount code usage limit reached.");
+            }
+            if (discount.getMinimumOrderAmount() != null && totalAmount.compareTo(discount.getMinimumOrderAmount()) < 0) {
+                throw new RuntimeException("Minimum order amount for this discount not met.");
+            }
+
+            // Apply discount
+            if (discount.getDiscountPercent() != null) {
+                totalAmount = totalAmount.multiply(BigDecimal.valueOf(100 - discount.getDiscountPercent()).divide(BigDecimal.valueOf(100), BigDecimal.ROUND_HALF_UP));
+            } else if (discount.getDiscountAmount() != null) {
+                totalAmount = totalAmount.subtract(discount.getDiscountAmount());
+                if (totalAmount.compareTo(BigDecimal.ZERO) < 0) {
+                    totalAmount = BigDecimal.ZERO;
+                }
+            }
+            appliedDiscount = discount;
+        }
+
+        // 4. Create the Order
         Order order = Order.builder()
                 .userId(request.getUserId())
                 .eventId(request.getEventId())
-                .totalAmount(total)
-                .status(Order.OrderStatus.PENDING)
+                .totalAmount(totalAmount)
+                .currency(request.getCurrency() != null ? request.getCurrency() : "USD")
+                .discountCode(request.getDiscountCode())
+                .paymentMethod(request.getPaymentMethod())
+                .status(Order.OrderStatus.PENDING) // Explicitly set initial status
                 .build();
+        
+        Order savedOrder = orderRepository.save(order);
+        // Ensure status is not null on the returned object before proceeding
+        // In case @PrePersist is not always effective or there's a detached entity issue
+        if (savedOrder.getStatus() == null) {
+            savedOrder.setStatus(Order.OrderStatus.PENDING);
+        }
+        order = savedOrder; // Use the saved instance for further operations
 
-        order = orderRepository.save(order);
+        // 5. Link OrderItems to Order and save
+        List<OrderItem> orderItems = new ArrayList<>(orderItemMap.values());
+        for (OrderItem item : orderItems) {
+            item.setOrder(order);
+        }
+        orderItemRepository.saveAll(orderItems);
 
-        Order finalOrder = order;
-        List<OrderItem> items = request.getItems().stream()
-                .map(i -> OrderItem.builder()
-                        .order(finalOrder)
-                        .ticketTypeId(i.getTicketTypeId())
-                        .quantity(i.getQuantity())
-                        .price(BigDecimal.valueOf(i.getPrice()))
-                        .build())
-                .collect(Collectors.toList());
+        // 6. Link Tickets to their respective OrderItems and save
+        order.setItems(orderItems); // Ensure order has items before saving tickets
+        ticketRepository.saveAll(ticketsToSave);
 
-        orderItemRepository.saveAll(items);
-        order.setItems(items);
+        // 7. Create PaymentInfo
+        PaymentInfo paymentInfo = PaymentInfo.builder()
+                .order(order)
+                .method(request.getPaymentMethod())
+                .amount(totalAmount)
+                .status(PaymentInfo.PaymentStatus.PENDING)
+                .build();
+        paymentInfoRepository.save(paymentInfo);
+
+        order.setItems(orderItems);
+        order.setPaymentInfo(paymentInfo);
+
+        // Increment discount usage count if a discount was applied
+        if (appliedDiscount != null) {
+            eventServiceClient.incrementDiscountUsedCount(appliedDiscount.getId());
+        }
 
         return OrderResponse.fromEntity(order);
     }
 
-    public List<OrderResponse> getOrdersByUser(Long userId) {
-        return orderRepository.findByUserId(userId).stream()
+    public List<OrderResponse> getOrdersByUser(UUID userId) {
+        List<OrderResponse> orderResponses = orderRepository.findByUserId(userId).stream()
+                .map(OrderResponse::fromEntity)
+                .collect(Collectors.toList());
+        log.info(orderResponses.toString());
+        return orderResponses;
+    }
+
+    public List<OrderResponse> getOrdersForEvent(Long eventId, Order.OrderStatus status) {
+        List<Order> orders;
+        if (status != null) {
+            orders = orderRepository.findByEventIdAndStatus(eventId, status);
+        } else {
+            orders = orderRepository.findByEventId(eventId);
+        }
+        return orders.stream()
                 .map(OrderResponse::fromEntity)
                 .collect(Collectors.toList());
     }
@@ -62,12 +220,195 @@ public class OrderService {
                 .orElseThrow(() -> new RuntimeException("Order not found"));
     }
 
+    // New method to get the Order entity directly for security checks
+    public Order getOrderEntity(Long id) {
+        return orderRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+    }
+
+    @Transactional
+    public Order updateOrderStatus(Long orderId, Order.OrderStatus newStatus) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        order.setStatus(newStatus);
+        return orderRepository.save(order);
+    }
+
+    // This method now acts as a callback from the payment service
+    @Transactional
+    public PaymentInfo updatePaymentInfoStatus(Long orderId, String transactionId, PaymentInfo.PaymentStatus paymentStatus) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        PaymentInfo paymentInfo = order.getPaymentInfo();
+        if (paymentInfo == null) {
+            throw new RuntimeException("Payment information not found for order: " + orderId);
+        }
+
+        paymentInfo.setTransactionId(transactionId);
+        paymentInfo.setStatus(paymentStatus);
+        paymentInfo.setPaidAt(LocalDateTime.now());
+        paymentInfoRepository.save(paymentInfo);
+
+        if (paymentStatus == PaymentInfo.PaymentStatus.SUCCESS) {
+            order.setStatus(Order.OrderStatus.PAID);
+            orderRepository.save(order);
+            // Send order confirmation email
+            String orderDetails = String.format("Order ID: %d, Total Amount: %s %s",
+                                                order.getId(), order.getTotalAmount(), order.getCurrency());
+            // In a real app, you'd get the user's email from the auth service or user service
+            // For now, using a placeholder email
+            emailService.sendOrderConfirmationEmail("user@example.com", orderDetails);
+
+            // Send individual ticket emails
+            order.getItems().stream()
+                    .flatMap(orderItem -> orderItem.getTickets().stream())
+                    .forEach(ticket -> {
+                        // In a real app, you'd fetch event details, attendee name etc.
+                        String ticketDetails = String.format("Event: %s, Ticket Type: %d, Seat: %d",
+                                "Event Name Placeholder", ticket.getOrderItem().getTicketTypeId(), ticket.getSeatId());
+                        // Assuming attendee email is available on the ticket or from user service
+                        emailService.sendTicketEmail("attendee@example.com", ticketDetails, ticket.getTicketCode());
+                    });
+
+        } else if (paymentStatus == PaymentInfo.PaymentStatus.FAILED) {
+            order.setStatus(Order.OrderStatus.CANCELLED); // Or a specific FAILED status
+            orderRepository.save(order);
+            // Optionally, release reservations here if payment failed
+        }
+        return paymentInfo;
+    }
+
+    @Transactional
+    public PaymentTransactionDto initiatePayment(Long orderId, String paymentMethod) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+
+        if (order.getStatus() != Order.OrderStatus.PENDING) {
+            throw new RuntimeException("Payment can only be initiated for PENDING orders.");
+        }
+
+        PaymentRequestDto paymentRequest = PaymentRequestDto.builder()
+                .orderId(order.getId())
+                .amount(order.getTotalAmount())
+                .currency(order.getCurrency())
+                .paymentMethod(paymentMethod)
+                .build();
+
+        // Call payment service to process the payment
+        PaymentTransactionDto paymentTransaction = paymentServiceClient.processPayment(paymentRequest);
+
+        // Update local PaymentInfo based on the payment service response
+        PaymentInfo paymentInfo = order.getPaymentInfo();
+        if (paymentInfo == null) {
+            // This should ideally not happen if createOrder always creates PaymentInfo
+            paymentInfo = PaymentInfo.builder()
+                    .order(order)
+                    .method(paymentMethod)
+                    .amount(order.getTotalAmount())
+                    .build();
+        }
+        paymentInfo.setTransactionId(paymentTransaction.getTransactionId());
+        paymentInfo.setStatus(PaymentInfo.PaymentStatus.valueOf(paymentTransaction.getStatus())); // Convert String to Enum
+        paymentInfo.setPaidAt(paymentTransaction.getCreatedAt()); // Assuming createdAt is when payment was processed
+        paymentInfoRepository.save(paymentInfo);
+
+        // Update order status based on payment transaction status
+        if (paymentTransaction.getStatus().equals(PaymentInfo.PaymentStatus.SUCCESS.name())) {
+            order.setStatus(Order.OrderStatus.PAID);
+        } else if (paymentTransaction.getStatus().equals(PaymentInfo.PaymentStatus.FAILED.name())) {
+            order.setStatus(Order.OrderStatus.CANCELLED); // Or a specific FAILED status
+        }
+        orderRepository.save(order);
+
+        return paymentTransaction;
+    }
+
+
     @Transactional
     public void cancelOrder(Long id) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
-        order.setStatus(Order.OrderStatus.CANCELLED);
-        orderRepository.save(order);
-    }
-}
 
+        if (order.getStatus() == Order.OrderStatus.CANCELLED || order.getStatus() == Order.OrderStatus.REFUNDED) {
+            throw new RuntimeException("Order is already cancelled or refunded.");
+        }
+
+        // Check Event Policy
+        com.example.order_service.dto.EventDto event = eventServiceClient.getEventById(order.getEventId());
+
+        // 1. Check if refund is enabled
+        if (Boolean.FALSE.equals(event.getRefundEnabled())) {
+            throw new RuntimeException("Refunds are not enabled for this event.");
+        }
+
+        // 2. Check deadline
+        if (event.getStartTime() != null && event.getRefundDeadlineHours() != null) {
+            LocalDateTime deadline = event.getStartTime().minusHours(event.getRefundDeadlineHours());
+            if (LocalDateTime.now().isAfter(deadline)) {
+                throw new RuntimeException("Refund deadline has passed. Deadline was: " + deadline);
+            }
+        }
+
+        // 3. Process Refund if Paid
+        if (order.getStatus() == Order.OrderStatus.PAID) {
+            BigDecimal refundAmount = order.getTotalAmount();
+
+            // Apply fee
+            if (event.getRefundFeePercent() != null && event.getRefundFeePercent() > 0) {
+                BigDecimal fee = refundAmount.multiply(BigDecimal.valueOf(event.getRefundFeePercent()).divide(BigDecimal.valueOf(100), BigDecimal.ROUND_HALF_UP));
+                refundAmount = refundAmount.subtract(fee);
+            }
+
+            if (refundAmount.compareTo(BigDecimal.ZERO) > 0 && order.getPaymentInfo() != null && order.getPaymentInfo().getTransactionId() != null) {
+                com.example.order_service.dto.RefundRequestDto refundReq = com.example.order_service.dto.RefundRequestDto.builder()
+                        .transactionId(order.getPaymentInfo().getTransactionId())
+                        .amount(refundAmount)
+                        .reason("User requested cancellation")
+                        .build();
+                paymentServiceClient.processRefund(refundReq);
+            }
+            order.setStatus(Order.OrderStatus.REFUNDED);
+        } else {
+            order.setStatus(Order.OrderStatus.CANCELLED);
+        }
+
+        orderRepository.save(order);
+
+        // Delegate ticket status updates to TicketService
+        order.getItems().forEach(orderItem ->
+            orderItem.getTickets().forEach(ticket -> {
+                ticketService.updateTicketStatus(ticket.getTicketCode(), Ticket.TicketStatus.REFUNDED);
+            })
+        );
+    }
+
+    public List<Ticket> getTicketsForOrder(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        return order.getItems().stream()
+                .flatMap(orderItem -> orderItem.getTickets().stream())
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void resendTicketsForOrder(Long orderId, String recipientEmail) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+
+        if (order.getStatus() != Order.OrderStatus.PAID) {
+            throw new RuntimeException("Tickets can only be resent for PAID orders.");
+        }
+
+        order.getItems().stream()
+                .flatMap(orderItem -> orderItem.getTickets().stream())
+                .forEach(ticket -> {
+                    // In a real app, you'd fetch event details, attendee name etc.
+                    String ticketDetails = String.format("Event: %s, Ticket Type: %d, Seat: %d",
+                            "Event Name Placeholder", ticket.getOrderItem().getTicketTypeId(), ticket.getSeatId());
+                    emailService.sendTicketEmail(recipientEmail, ticketDetails, ticket.getTicketCode());
+                });
+    }
+
+    // Removed getTicketsForUser, updateTicketStatus, and transferTicket as they are now in TicketService
+}

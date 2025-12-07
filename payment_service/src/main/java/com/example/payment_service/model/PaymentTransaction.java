@@ -20,11 +20,12 @@ public class PaymentTransaction {
     private Long id;
 
     private Long orderId;
-    private String gateway;
+    private String paymentMethod; // Renamed from 'gateway'
     private String transactionId;
     private BigDecimal amount;
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 20) // Ensure column is large enough for enum names
     private Status status;
 
     private LocalDateTime createdAt;
@@ -33,7 +34,8 @@ public class PaymentTransaction {
     public enum Status {
         PENDING,
         SUCCESS,
-        FAILED
+        FAILED,
+        REFUNDED
     }
 
     @PrePersist

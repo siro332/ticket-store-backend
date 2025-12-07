@@ -45,11 +45,6 @@ public class User {
     @UpdateTimestamp
     private Timestamp updatedAt;
 
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id"))
-    private Set<Role> roles = new HashSet<>();
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true) // Revert to LAZY
+    private Set<UserOrganizationRole> organizationRoles = new HashSet<>();
 }
-

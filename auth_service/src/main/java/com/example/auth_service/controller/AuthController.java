@@ -3,6 +3,7 @@ package com.example.auth_service.controller;
 import com.example.auth_service.dto.JwtResponse;
 import com.example.auth_service.dto.LoginRequest;
 import com.example.auth_service.dto.SignupRequest;
+import com.example.auth_service.model.User;
 import com.example.auth_service.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,8 +17,8 @@ public class AuthController {
 
     @PostMapping("/signup")
     public ResponseEntity<?> register(@RequestBody SignupRequest request) {
-        authService.registerUser(request, "USER");
-        return ResponseEntity.ok("Registration successful");
+        User registeredUser = authService.registerUser(request); // Call the updated registerUser
+        return ResponseEntity.ok("Registration successful for user: " + registeredUser.getEmail());
     }
 
     @PostMapping("/login")
@@ -26,8 +27,7 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<?> refreshAccessToken(@RequestParam("refreshToken") String refreshToken) {
+    public ResponseEntity<JwtResponse> refreshAccessToken(@RequestParam("refreshToken") String refreshToken) {
         return ResponseEntity.ok(authService.refreshToken(refreshToken));
     }
 }
-

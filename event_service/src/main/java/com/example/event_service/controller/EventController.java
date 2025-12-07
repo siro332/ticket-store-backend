@@ -1,11 +1,17 @@
 package com.example.event_service.controller;
 
+import com.example.event_service.model.Discount;
 import com.example.event_service.model.Event;
+import com.example.event_service.model.Seat;
+import com.example.event_service.model.TicketType;
 import com.example.event_service.service.EventService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -42,5 +48,104 @@ public class EventController {
         eventService.deleteEvent(id);
         return ResponseEntity.noContent().build();
     }
-}
 
+    // TicketType management endpoints
+    @PreAuthorize("hasAnyRole('ORGANIZER','ADMIN')")
+    @PostMapping("/{eventId}/ticket-types")
+    public ResponseEntity<TicketType> addTicketTypeToEvent(@PathVariable Long eventId, @RequestBody TicketType ticketType) {
+        return ResponseEntity.ok(eventService.addTicketTypeToEvent(eventId, ticketType));
+    }
+
+    @GetMapping("/{eventId}/ticket-types")
+    public ResponseEntity<List<TicketType>> getTicketTypesForEvent(@PathVariable Long eventId) {
+        return ResponseEntity.ok(eventService.getTicketTypesForEvent(eventId));
+    }
+
+    @GetMapping("/ticket-types/{ticketTypeId}")
+    public ResponseEntity<TicketType> getTicketType(@PathVariable Long ticketTypeId) {
+        return ResponseEntity.ok(eventService.getTicketTypeById(ticketTypeId));
+    }
+
+    @PreAuthorize("hasAnyRole('ORGANIZER','ADMIN')")
+    @DeleteMapping("/ticket-types/{ticketTypeId}")
+    public ResponseEntity<Void> deleteTicketType(@PathVariable Long ticketTypeId) {
+        eventService.deleteTicketType(ticketTypeId);
+        return ResponseEntity.noContent().build();
+    }
+
+    // Discount management endpoints
+    @PreAuthorize("hasAnyRole('ORGANIZER','ADMIN')")
+    @PostMapping("/{eventId}/discounts")
+    public ResponseEntity<Discount> addDiscountToEvent(@PathVariable Long eventId, @RequestBody Discount discount) {
+        return ResponseEntity.ok(eventService.addDiscountToEvent(eventId, discount));
+    }
+
+    @GetMapping("/{eventId}/discounts")
+    public ResponseEntity<List<Discount>> getDiscountsForEvent(@PathVariable Long eventId) {
+        return ResponseEntity.ok(eventService.getDiscountsForEvent(eventId));
+    }
+
+    @PreAuthorize("hasAnyRole('ORGANIZER','ADMIN')")
+    @DeleteMapping("/discounts/{discountId}")
+    public ResponseEntity<Void> deleteDiscount(@PathVariable Long discountId) {
+        eventService.deleteDiscount(discountId);
+        return ResponseEntity.noContent().build();
+    }
+
+    // New endpoint for OrderService to validate discount code
+    @GetMapping("/{eventId}/discounts/validate")
+    public ResponseEntity<Discount> validateDiscountCode(@PathVariable Long eventId, @RequestParam String code) {
+        return eventService.validateDiscountCode(eventId, code)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // New endpoint to increment discount usage count
+    @PreAuthorize("hasAnyRole('ORGANIZER','ADMIN')")
+    @PostMapping("/discounts/{discountId}/increment-usage")
+    public ResponseEntity<Void> incrementDiscountUsage(@PathVariable Long discountId) {
+        eventService.incrementDiscountUsedCount(discountId);
+        return ResponseEntity.noContent().build();
+    }
+
+
+    // Seat management endpoints
+    @PreAuthorize("hasAnyRole('ORGANIZER','ADMIN')")
+    @PostMapping("/{eventId}/seats")
+    public ResponseEntity<List<Seat>> addSeatsToEvent(@PathVariable Long eventId, @RequestBody List<Seat> seats) {
+        return ResponseEntity.ok(eventService.addSeatsToEvent(eventId, seats));
+    }
+
+    @GetMapping("/{eventId}/seats")
+    public ResponseEntity<List<Seat>> getSeatsForEvent(@PathVariable Long eventId) {
+        return ResponseEntity.ok(eventService.getSeatsForEvent(eventId));
+    }
+
+    @PreAuthorize("hasAnyRole('ORGANIZER','ADMIN')")
+    @PutMapping("/seats/{seatId}/availability")
+    public ResponseEntity<Void> updateSeatAvailability(@PathVariable Long seatId, @RequestParam Boolean isAvailable) {
+        eventService.updateSeatAvailability(seatId, isAvailable);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasAnyRole('ORGANIZER','ADMIN')")
+    @PutMapping("/seats/{seatId}/lock")
+    public ResponseEntity<Void> updateSeatLockStatus(@PathVariable Long seatId, @RequestParam Boolean locked) {
+        eventService.updateSeatLockStatus(seatId, locked);
+        return ResponseEntity.noContent().build();
+    }
+
+    // New endpoint for searching and filtering events
+    @GetMapping("/search")
+    public ResponseEntity<List<Event>> searchEvents(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) LocalDateTime startTime,
+            @RequestParam(required = false) LocalDateTime endTime,
+            @RequestParam(required = false) BigDecimal minPrice,
+            @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) String location) { // Added location parameter
+        List<Event> events = eventService.searchEvents(keyword, category, startTime, endTime, minPrice, maxPrice, location);
+        return ResponseEntity.ok(events);
+    }
+}

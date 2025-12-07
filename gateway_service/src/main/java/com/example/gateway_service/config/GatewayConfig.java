@@ -1,18 +1,18 @@
 package com.example.gateway_service.config;
+
 import lombok.RequiredArgsConstructor;
-
-import org.springframework.cloud.gateway.route.RouteLocator;
-import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
-
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @RequiredArgsConstructor
 public class GatewayConfig {
 
-    private final JwtAuthFilter jwtAuthFilter;
+    // Inject the GatewayFilterFactory, not the filter itself
+    private final JwtAuthGatewayFilterFactory jwtAuthGatewayFilterFactory;
 
+    // Use routes defined in application.yml instead of hardcoding them here.
+    // This avoids conflict and ensures consistency.
+    /*
     @Bean
     public RouteLocator routes(RouteLocatorBuilder builder) {
         return builder.routes()
@@ -31,10 +31,12 @@ public class GatewayConfig {
 
                 .route("secure-route",
                         r -> r.path("/secure/**")
-                                .filters(f -> f.filter(jwtAuthFilter).stripPrefix(1))
+                                // Apply the filter using the factory
+                                .filters(f -> f.filter(jwtAuthGatewayFilterFactory.apply(new JwtAuthGatewayFilterFactory.Config())).stripPrefix(1))
                                 .uri("http://order-service:8083"))
 
                 .build();
     }
+    */
 }
 

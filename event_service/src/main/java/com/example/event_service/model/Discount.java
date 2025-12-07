@@ -2,6 +2,8 @@ package com.example.event_service.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -18,6 +20,8 @@ public class Discount {
 
     private String code;                // Mã giảm giá (unique per event)
     private Integer discountPercent;    // Phần trăm giảm
+    private BigDecimal discountAmount;  // New: Fixed amount discount
+    private BigDecimal minimumOrderAmount; // New: Minimum order amount for discount to apply
     private Integer usageLimit;         // Số lượt sử dụng tối đa
     private Integer usedCount;          // Số lượt đã dùng
 
@@ -28,4 +32,3 @@ public class Discount {
     @JoinColumn(name = "event_id")
     private Event event;
 }
-

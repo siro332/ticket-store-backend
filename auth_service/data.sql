@@ -9,7 +9,7 @@ INSERT INTO users (id, email, password_hash, full_name, status, created_at, upda
 SELECT * FROM (SELECT
     UNHEX(REPLACE('00000000-0000-0000-0000-000000000001', '-', '')) AS id,
     'admin@example.com' AS email,
-    '$2a$10$f9T1g.1H8E2J3K4L5M6N7O8P9Q0R1S2T3U4V5W6X7Y8Z9A0B1C' AS password_hash, -- 'admin123'
+    '$2a$10$7UQX1Q7AOZT2xZQ/FSR7LevUDz1GaiKwvjt4upHp8SPrtUxSuMux6' AS password_hash, -- 'admin123'
     'System Admin' AS full_name,
     'ACTIVE' AS status,
     NOW() AS created_at,

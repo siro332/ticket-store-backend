@@ -2,9 +2,11 @@ package com.example.order_service.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "orders")
@@ -18,9 +20,13 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long userId;
+    @Column(columnDefinition = "BINARY(16)")
+    private UUID userId;
     private Long eventId;
     private BigDecimal totalAmount;
+    private String currency; // New field for currency
+    private String discountCode; // New field for applied discount code
+    private String paymentMethod; // New field for payment method used
 
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
@@ -28,10 +34,10 @@ public class Order {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items;
 
-    @OneToOne(mappedBy = "order", cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private PaymentInfo paymentInfo;
 
     @PrePersist

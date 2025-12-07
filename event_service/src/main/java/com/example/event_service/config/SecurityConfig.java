@@ -3,6 +3,7 @@ package com.example.event_service.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -27,15 +28,13 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Cho phép public xem sự kiện, địa điểm, vé
-                        .requestMatchers(
-                                "/api/events/**",
-                                "/api/venues/**",
-                                "/api/tickets/**",
-                                "/api/seats/**",
-                                "/api/discounts/**"
-                        ).permitAll()
-                        // Mọi API khác yêu cầu token
+                        // Publicly accessible GET requests for browsing events, venues, tickets, etc.
+                        .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/venues/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/tickets/**").permitAll() // Public view of tickets (might need further refinement later)
+                        .requestMatchers(HttpMethod.GET, "/api/seats/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/discounts/**").permitAll()
+                        // All other requests (including POST, PUT, DELETE to above paths) require authentication
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
