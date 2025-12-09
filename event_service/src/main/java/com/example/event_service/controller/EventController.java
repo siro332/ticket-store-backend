@@ -6,6 +6,8 @@ import com.example.event_service.model.Seat;
 import com.example.event_service.model.TicketType;
 import com.example.event_service.service.EventService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -101,7 +103,6 @@ public class EventController {
     }
 
     // New endpoint to increment discount usage count
-    @PreAuthorize("hasAnyRole('ORGANIZER','ADMIN')")
     @PostMapping("/discounts/{discountId}/increment-usage")
     public ResponseEntity<Void> incrementDiscountUsage(@PathVariable Long discountId) {
         eventService.incrementDiscountUsedCount(discountId);
@@ -135,17 +136,17 @@ public class EventController {
         return ResponseEntity.noContent().build();
     }
 
-    // New endpoint for searching and filtering events
     @GetMapping("/search")
-    public ResponseEntity<List<Event>> searchEvents(
+    public ResponseEntity<Page<Event>> searchEvents(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) LocalDateTime startTime,
             @RequestParam(required = false) LocalDateTime endTime,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
-            @RequestParam(required = false) String location) { // Added location parameter
-        List<Event> events = eventService.searchEvents(keyword, category, startTime, endTime, minPrice, maxPrice, location);
+            @RequestParam(required = false) String location,
+            Pageable pageable) {
+        Page<Event> events = eventService.searchEvents(keyword, category, startTime, endTime, minPrice, maxPrice, location, pageable);
         return ResponseEntity.ok(events);
     }
 }

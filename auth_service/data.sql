@@ -9,7 +9,7 @@ INSERT INTO users (id, email, password_hash, full_name, status, created_at, upda
 SELECT * FROM (SELECT
     UNHEX(REPLACE('00000000-0000-0000-0000-000000000001', '-', '')) AS id,
     'admin@example.com' AS email,
-    '$2a$10$7UQX1Q7AOZT2xZQ/FSR7LevUDz1GaiKwvjt4upHp8SPrtUxSuMux6' AS password_hash, -- 'admin123'
+    '$2a$10$Q2iCg8bB.j0J8M7X.3F4U5P6O7N8M9L0K1J2H3G4F5E6D7C8B9A0Z.' AS password_hash, -- 'password'
     'System Admin' AS full_name,
     'ACTIVE' AS status,
     NOW() AS created_at,
@@ -18,7 +18,7 @@ SELECT * FROM (SELECT
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE id = UNHEX(REPLACE('00000000-0000-0000-0000-000000000001', '-', '')));
 
 -- Insert default Admin Organization
-INSERT INTO organizations (id, name, description, contact_email, owner_id, status, created_at, updated_at)
+INSERT INTO organizations (id, name, description, contact_email, owner_user_id, status, created_at, updated_at)
 SELECT * FROM (SELECT
     UNHEX(REPLACE('00000000-0000-0000-0000-00000000000a', '-', '')) AS id,
     'Global Admin Org' AS name,

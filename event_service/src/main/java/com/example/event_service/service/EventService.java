@@ -11,9 +11,13 @@ import com.example.event_service.repository.DiscountRepository;
 import com.example.event_service.repository.EventRepository;
 import com.example.event_service.repository.SeatRepository;
 import com.example.event_service.repository.TicketTypeRepository;
+import com.example.event_service.specification.EventSpecification;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -180,64 +184,8 @@ public class EventService {
                 .build();
     }
 
-    // Refactored searchEvents method for more flexible filtering
-    public List<Event> searchEvents(String keyword, String category, LocalDateTime startTime, LocalDateTime endTime, BigDecimal minPrice, BigDecimal maxPrice, String location) {
-        List<Event> events = eventRepository.findAll(); // Start with all events
-        log.debug("Search Events: Initial count {} for filters - keyword: {}, category: {}, location: {}", events.size(), keyword, category, location);
-
-        // Apply filters sequentially in-memory
-        if (keyword != null && !keyword.isEmpty()) {
-            events = events.stream()
-                    .filter(event -> event.getName().toLowerCase().contains(keyword.toLowerCase()) ||
-                                     event.getDescription().toLowerCase().contains(keyword.toLowerCase()))
-                    .collect(Collectors.toList());
-            log.debug("Search Events: After keyword filter ({}='{}'), count: {}", keyword, keyword, events.size());
-        }
-        if (category != null && !category.isEmpty()) {
-            events = events.stream()
-                    .filter(event -> event.getCategory().equalsIgnoreCase(category))
-                    .collect(Collectors.toList());
-            log.debug("Search Events: After category filter ({}='{}'), count: {}", category, category, events.size());
-        }
-        if (startTime != null) {
-            events = events.stream()
-                    .filter(event -> event.getStartTime() != null && event.getStartTime().isAfter(startTime))
-                    .collect(Collectors.toList());
-            log.debug("Search Events: After startTime filter ({}='{}'), count: {}", startTime, startTime, events.size());
-        }
-        if (endTime != null) {
-            events = events.stream()
-                    .filter(event -> event.getEndTime() != null && event.getEndTime().isBefore(endTime))
-                    .collect(Collectors.toList());
-            log.debug("Search Events: After endTime filter ({}='{}'), count: {}", endTime, endTime, events.size());
-        }
-        if (location != null && !location.isEmpty()) {
-            events = events.stream()
-                    .filter(event -> event.getVenue() != null && event.getVenue().getCity() != null && event.getVenue().getCity().equalsIgnoreCase(location))
-                    .collect(Collectors.toList());
-            log.debug("Search Events: After location filter ({}='{}'), count: {}", location, location, events.size());
-        }
-
-        // Apply price filtering
-        if (minPrice != null || maxPrice != null) {
-            List<Event> filteredByPrice = events.stream().filter(event -> {
-                List<TicketType> ticketTypes = ticketTypeRepository.findByEventId(event.getId());
-                return ticketTypes.stream().anyMatch(ticketType -> {
-                    BigDecimal price = ticketType.getPrice();
-                    boolean priceMatches = true;
-                    if (minPrice != null && price.compareTo(minPrice) < 0) {
-                        priceMatches = false;
-                    }
-                    if (maxPrice != null && price.compareTo(maxPrice) > 0) {
-                        priceMatches = false;
-                    }
-                    return priceMatches;
-                });
-            }).collect(Collectors.toList());
-            log.debug("Search Events: After price filter (minPrice: {}, maxPrice: {}), count: {}", minPrice, maxPrice, filteredByPrice.size());
-            events = filteredByPrice;
-        }
-        log.debug("Search Events: Final count after all filters: {}", events.size());
-        return events;
+    public Page<Event> searchEvents(String keyword, String category, LocalDateTime startTime, LocalDateTime endTime, BigDecimal minPrice, BigDecimal maxPrice, String location, Pageable pageable) {
+        Specification<Event> spec = EventSpecification.withFilters(keyword, category, startTime, endTime, minPrice, maxPrice, location);
+        return eventRepository.findAll(spec, pageable);
     }
 }

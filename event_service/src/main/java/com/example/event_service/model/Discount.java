@@ -30,5 +30,6 @@ public class Discount {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Event event;
 }

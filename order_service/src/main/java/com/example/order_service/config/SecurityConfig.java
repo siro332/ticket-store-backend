@@ -26,6 +26,7 @@ public class SecurityConfig {
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/orders/{id}/payment-callback").permitAll() // Allow payment service callback
+                        .requestMatchers(HttpMethod.GET, "/api/reservations/event/*/active").permitAll() // Allow EventService to check availability
                         .requestMatchers("/api/orders/**", "/api/reservations/**").authenticated()
                         .anyRequest().permitAll()
                 )

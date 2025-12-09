@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ExternalStorageConfigurationManager" enabled="true" />
+  <component name="FrameworkDetectionExcludesConfiguration">
+    <file type="web" url="file://$PROJECT_DIR$/auth_service" />
+    <file type="web" url="file://$PROJECT_DIR$/event_service" />
+    <file type="web" url="file://$PROJECT_DIR$/gateway_service" />
+    <file type="web" url="file://$PROJECT_DIR$/order_service" />
+    <file type="web" url="file://$PROJECT_DIR$/payment_service" />
+  </component>
+  <component name="ProjectRootManager">
+    <output url="file://$PROJECT_DIR$/out" />
+  </component>
+</project>

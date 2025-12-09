@@ -13,7 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -22,7 +21,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.security.Key;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -79,9 +77,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             
             // Correctly parse roles from claims
             List<Map<String, String>> rolesFromClaims = claims.get("roles", List.class); // Get as List of Maps
+            log.debug("Roles from JWT claims for user {}: {}", email, rolesFromClaims);
             
             if (email != null && userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                var authorities = rolesFromClaims == null ? List.of() :
+                List<SimpleGrantedAuthority> authorities = rolesFromClaims == null ? List.of() :
                         rolesFromClaims.stream()
                                 .filter(roleMap -> {
                                     if (roleMap == null) {
@@ -101,16 +100,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 })
                                 .map(roleMap -> new SimpleGrantedAuthority(roleMap.get("authority"))) // Extract "authority" field
                                 .collect(Collectors.toList());
+                log.debug("Authorities collected for user {}: {}", email, authorities);
 
                 // Use UserPrincipal as the principal object and store the raw JWT
-                UserPrincipal userPrincipal = new UserPrincipal(userId, email, jwt);
+                // Now UserPrincipal implements UserDetails, so we can pass authorities directly
+                UserPrincipal userPrincipal = UserPrincipal.builder()
+                        .id(userId)
+                        .email(email)
+                        .jwtToken(jwt)
+                        .authorities(authorities) // Pass the authorities here
+                        .build();
                 
                 UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(userPrincipal, null, (Collection<? extends GrantedAuthority>) authorities);
+                        new UsernamePasswordAuthenticationToken(userPrincipal, null, userPrincipal.getAuthorities()); // Use getAuthorities() from UserPrincipal
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authToken);
-                log.debug("SecurityContextHolder populated for user: {} with ID: {}", email, userId);
+                log.debug("SecurityContextHolder populated for user: {} with ID: {}. Authorities: {}", email, userId, userPrincipal.getAuthorities());
             } else {
                 log.debug("Email or userId is null, or SecurityContextHolder already populated. Email: {}, userId: {}", email, userId);
             }

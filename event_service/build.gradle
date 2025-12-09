@@ -47,6 +47,7 @@ dependencies {
 
     // Added Feign Client for inter-service communication
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
 }
 
 tasks.named('test') {

@@ -54,6 +54,7 @@ public class JwtService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("roles", userDetails.getAuthorities());
         claims.put("id", user.getId().toString()); // Add user ID as a claim (convert UUID to String)
+        claims.put("fullName", user.getFullName()); // Add user full name as a claim
 
         return generateToken(
                 claims,

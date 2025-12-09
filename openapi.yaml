@@ -39,7 +39,7 @@ paths:
                 example: "Registration successful for user: user@example.com"
         '400':
           description: Invalid input
-  
+
   /api/auth/login:
     post:
       tags:
@@ -361,6 +361,549 @@ paths:
         '404':
           description: User not found
 
+  # --- Event Service ---
+  /api/events:
+    get:
+      tags:
+        - Events
+      summary: Get all events
+      responses:
+        '200':
+          description: List of events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+    post:
+      tags:
+        - Events
+      summary: Create a new event
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Event'
+      responses:
+        '200':
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Only ORGANIZERs or ADMINs can create events
+
+  /api/events/{id}:
+    get:
+      tags:
+        - Events
+      summary: Get event by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Event details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '404':
+          description: Event not found
+    put:
+      tags:
+        - Events
+      summary: Update event
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Event'
+      responses:
+        '200':
+          description: Event updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Only ORGANIZERs or ADMINs can update events
+        '404':
+          description: Event not found
+    delete:
+      tags:
+        - Events
+      summary: Delete event
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Event deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Only ORGANIZERs or ADMINs can delete events
+        '404':
+          description: Event not found
+
+  /api/events/search:
+    get:
+      tags:
+        - Events
+      summary: Search and filter events
+      parameters:
+        - in: query
+          name: keyword
+          schema:
+            type: string
+          description: Keyword to search in event name or description
+        - in: query
+          name: category
+          schema:
+            type: string
+          description: Filter by event category
+        - in: query
+          name: startTime
+          schema:
+            type: string
+            format: date-time
+          description: Filter by events starting after this time
+        - in: query
+          name: endTime
+          schema:
+            type: string
+            format: date-time
+          description: Filter by events ending before this time
+        - in: query
+          name: minPrice
+          schema:
+            type: number
+            format: float
+          description: Filter by minimum ticket price
+        - in: query
+          name: maxPrice
+          schema:
+            type: number
+            format: float
+          description: Filter by maximum ticket price
+        - in: query
+          name: location
+          schema:
+            type: string
+          description: Filter by event location (city)
+        - in: query
+          name: page
+          schema:
+            type: integer
+            format: int32
+            default: 0
+          description: Page number (0-indexed)
+        - in: query
+          name: size
+          schema:
+            type: integer
+            format: int32
+            default: 10
+          description: Number of items per page
+      responses:
+        '200':
+          description: Filtered list of events with pagination info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageEvent'
+
+  /api/events/{eventId}/ticket-types:
+    get:
+      tags:
+        - Events
+      summary: Get ticket types for an event
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of ticket types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TicketType'
+        '404':
+          description: Event not found
+    post:
+      tags:
+        - Events
+      summary: Add ticket type to event
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketType'
+      responses:
+        '200':
+          description: Ticket type added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketType'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Only ORGANIZERs or ADMINs can add ticket types
+        '404':
+          description: Event not found
+
+  /api/events/ticket-types/{ticketTypeId}:
+    get:
+      tags:
+        - Events
+      summary: Get ticket type by ID
+      parameters:
+        - in: path
+          name: ticketTypeId
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Ticket type details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketType'
+        '404':
+          description: Ticket type not found
+    delete:
+      tags:
+        - Events
+      summary: Delete ticket type
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: ticketTypeId
+          required: true
+          schema:
+            type: integer
+            format: int64
+            responses:
+              '204':
+                description: Ticket type deleted
+              '401':
+                description: Unauthorized
+              '403':
+                description: Forbidden - Only ORGANIZERs or ADMINs can delete ticket types
+              '404':
+                description: Ticket type not found
+
+
+
+  /api/events/{eventId}/discounts:
+    post:
+      tags:
+        - Events
+      summary: Add discount code to event
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Discount'
+      responses:
+        '200':
+          description: Discount code added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discount'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Only ORGANIZERs or ADMINs can add discounts
+        '404':
+          description: Event not found
+    get:
+      tags:
+        - Events
+      summary: Get all discount codes for an event
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of discount codes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Discount'
+        '404':
+          description: Event not found
+
+  /api/events/discounts/{discountId}:
+    delete:
+      tags:
+        - Events
+      summary: Delete discount code
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: discountId
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Discount code deleted
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Only ORGANIZERs or ADMINs can delete discounts
+        '404':
+          description: Discount not found
+
+  /api/events/{eventId}/discounts/validate:
+    get:
+      tags:
+        - Events
+      summary: Validate a discount code for an event
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: code
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: Discount code is valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Discount'
+        '404':
+          description: Discount code not found or invalid
+
+  /api/events/discounts/{discountId}/increment-usage:
+    post:
+      tags:
+        - Events
+      summary: Increment the usage count of a discount code
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: discountId
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Discount usage incremented
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Only ORGANIZERs or ADMINs can increment discount usage
+        '404':
+          description: Discount not found
+
+  /api/events/{eventId}/seats:
+    post:
+      tags:
+        - Events
+      summary: Add seats to an event
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Seat'
+      responses:
+        '200':
+          description: Seats added
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Seat'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Only ORGANIZERs or ADMINs can add seats
+        '404':
+          description: Event not found
+    get:
+      tags:
+        - Events
+      summary: Get all seats for an event
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of seats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Seat'
+        '404':
+          description: Event not found
+
+  /api/events/seats/{seatId}/availability:
+    put:
+      tags:
+        - Events
+      summary: Update seat availability
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: seatId
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: isAvailable
+          schema:
+            type: boolean
+          required: true
+      responses:
+        '204':
+          description: Seat availability updated
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Only ORGANIZERs or ADMINs can update seat availability
+        '404':
+          description: Seat not found
+
+  /api/events/seats/{seatId}/lock:
+    put:
+      tags:
+        - Events
+      summary: Update seat lock status
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: seatId
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - in: query
+          name: locked
+          schema:
+            type: boolean
+          required: true
+      responses:
+        '204':
+          description: Seat lock status updated
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Only ORGANIZERs or ADMINs can update seat lock status
+        '404':
+          description: Seat not found
+
   # --- Order Service ---
   /api/orders:
     post:
@@ -622,7 +1165,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaymentTransactionDto'
+                $ref: '#/components/schemas/PaymentTransaction'
         '400':
           description: Invalid payment method or order status
         '401':
@@ -855,7 +1398,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ReservationDto'
+                  $ref: '#/components/schemas/Reservation'
         '404':
           description: Event not found
 
@@ -932,7 +1475,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ReservationDto'
+                  $ref: '#/components/schemas/Reservation'
         '401':
           description: Unauthorized
         '403':
@@ -1252,6 +1795,7 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1323,7 +1867,12 @@ components:
         roles:
           type: array
           items:
-            type: string
+            type: object
+            properties:
+              authority:
+                type: string
+            required:
+              - authority
           example: ["USER", "ORGANIZER"]
         permissions:
           type: array
@@ -1479,7 +2028,7 @@ components:
           $ref: '#/components/schemas/TicketType'
     
     # Order Schemas (continued)
-    PaymentTransactionDto:
+    PaymentTransaction:
       type: object
       properties:
         id:
@@ -1710,71 +2259,76 @@ components:
           type: string
           example: "SCANNED"
 
-    PaymentTransaction:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-          example: 1
-        orderId:
-          type: integer
-          format: int64
-          example: 1
-        paymentMethod:
-          type: string
-          example: "Credit Card"
-        transactionId:
-          type: string
-          example: "tx_123abc"
-        amount:
-          type: number
-          format: float
-          example: 100.00
-        status:
-          $ref: '#/components/schemas/PaymentTransactionStatus'
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-
-    PaymentTransactionStatus:
-      type: string
-      enum:
-        - PENDING
-        - SUCCESS
-        - FAILED
-        - REFUNDED
-
-    # Order
+    # Order (continued)
     ReservationRequest:
       type: object
       properties:
         userId:
-          type: integer
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
         eventId:
           type: integer
+          format: int64
+          example: 1
         ticketTypeId:
           type: integer
+          format: int64
+          example: 1
         seatId:
           type: integer
+          format: int64
+          example: 1
         quantity:
           type: integer
-    
+          example: 1
+      required:
+        - userId
+        - eventId
+        - ticketTypeId
+        - quantity
+
     Reservation:
       type: object
       properties:
         id:
           type: integer
-        status:
+          format: int64
+          example: 1
+        userId:
           type: string
-          enum: [PENDING, CONFIRMED, CANCELLED, EXPIRED]
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        eventId:
+          type: integer
+          format: int64
+          example: 1
+        ticketTypeId:
+          type: integer
+          format: int64
+          example: 1
+        seatId:
+          type: integer
+          format: int64
+          example: 1
+        quantity:
+          type: integer
+          example: 1
         expireAt:
           type: string
           format: date-time
-    
+          example: "2025-07-20T19:05:00Z"
+        status:
+          $ref: '#/components/schemas/ReservationStatus'
+
+    ReservationStatus:
+      type: string
+      enum:
+        - PENDING
+        - CONFIRMED
+        - EXPIRED
+        - CANCELLED
+
     OrderRequest:
       type: object
       properties:
@@ -1829,11 +2383,12 @@ components:
           items:
             type: integer
             format: int64
-          description: Optional: specific seat IDs if not coming from reservations
+            description: specific seat IDs if not coming from reservations
       required:
         - ticketTypeId
         - quantity
         - price
+
     OrderResponse:
       type: object
       properties:
@@ -1926,28 +2481,47 @@ components:
         updatedAt:
           type: string
           format: date-time    
-    # Payment
+    # Payment Schemas (continued)
     PaymentRequest:
       type: object
       properties:
         orderId:
           type: integer
+          format: int64
+          example: 1
         amount:
           type: number
+          format: float
+          example: 100.00
         currency:
           type: string
+          example: "USD"
         paymentMethod:
           type: string
+          example: "Credit Card"
+      required:
+        - orderId
+        - amount
+        - currency
+        - paymentMethod
     
     RefundRequest:
       type: object
       properties:
         transactionId:
           type: string
+          example: "tx_123abc"
         amount:
           type: number
+          format: float
+          example: 100.00
         reason:
           type: string
+          example: "Customer cancellation"
+      required:
+        - transactionId
+        - amount
+        - reason
     
     UserOrganizationRoleDto:
       type: object
@@ -2164,33 +2738,41 @@ components:
           example: "2025-08-31T23:59:59Z"
         event:
           $ref: '#/components/schemas/Event'
-
-    Seat:
+    PageEvent:
       type: object
       properties:
-        id:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+        totalPages:
+          type: integer
+          format: int32
+          example: 5
+        totalElements:
           type: integer
           format: int64
-          example: 1
-        section:
-          type: string
-          example: "A"
-        rowLabel:
-          type: string
-          example: "10"
-        seatNumber:
-          type: string
-          example: "05"
-        seatCategory:
-          type: string
-          example: "VIP"
-        isAvailable:
+          example: 50
+        size:
+          type: integer
+          format: int32
+          example: 10
+        number:
+          type: integer
+          format: int32
+          example: 0
+        first:
           type: boolean
           example: true
-        locked:
+        last:
           type: boolean
           example: false
-        event:
-          $ref: '#/components/schemas/Event'
-        ticketType:
-          $ref: '#/components/schemas/TicketType'
+        numberOfElements:
+          type: integer
+          format: int32
+          example: 10
+        empty:
+          type: boolean
+          example: false
+
+

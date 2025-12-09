@@ -16,7 +16,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -30,10 +30,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Publicly accessible GET requests for browsing events, venues, tickets, etc.
                         .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/events/*/seats").permitAll() // Explicitly allow seats
                         .requestMatchers(HttpMethod.GET, "/api/venues/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/tickets/**").permitAll() // Public view of tickets (might need further refinement later)
                         .requestMatchers(HttpMethod.GET, "/api/seats/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/discounts/**").permitAll()
+                        .requestMatchers("/error").permitAll()
                         // All other requests (including POST, PUT, DELETE to above paths) require authentication
                         .anyRequest().authenticated()
                 )

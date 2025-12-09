@@ -116,20 +116,20 @@ public class OrderService {
         DiscountDto appliedDiscount = null;
         if (request.getDiscountCode() != null && !request.getDiscountCode().isEmpty()) {
             DiscountDto discount = eventServiceClient.validateDiscountCode(request.getEventId(), request.getDiscountCode())
-                    .orElseThrow(() -> new RuntimeException("Invalid or expired discount code."));
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid or expired discount code."));
 
             // Validate discount conditions
             if (discount.getValidFrom() != null && discount.getValidFrom().isAfter(LocalDateTime.now())) {
-                throw new RuntimeException("Discount code is not yet active.");
+                throw new IllegalArgumentException("Discount code is not yet active.");
             }
             if (discount.getValidTo() != null && discount.getValidTo().isBefore(LocalDateTime.now())) {
-                throw new RuntimeException("Discount code has expired.");
+                throw new IllegalArgumentException("Discount code has expired.");
             }
             if (discount.getUsageLimit() != null && discount.getUsedCount() != null && discount.getUsedCount() >= discount.getUsageLimit()) {
-                throw new RuntimeException("Discount code usage limit reached.");
+                throw new IllegalArgumentException("Discount code usage limit reached.");
             }
             if (discount.getMinimumOrderAmount() != null && totalAmount.compareTo(discount.getMinimumOrderAmount()) < 0) {
-                throw new RuntimeException("Minimum order amount for this discount not met.");
+                throw new IllegalArgumentException("Minimum order amount for this discount not met.");
             }
 
             // Apply discount

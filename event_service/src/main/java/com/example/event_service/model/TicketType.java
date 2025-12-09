@@ -22,6 +22,7 @@ public class TicketType {
 
     @ManyToOne
     @JoinColumn(name = "event_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Event event;
 
     private BigDecimal price;
