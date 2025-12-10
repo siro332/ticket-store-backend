@@ -17,10 +17,6 @@ spring:
         format_sql: true
     database-platform: org.hibernate.dialect.MySQL8Dialect
 
-  sql:
-    init:
-      mode: always   # nếu bạn có file data.sql để insert role mặc định
-
 jwt:
   secret: a3NqaGdkamFza2hkamFzaGtkaGFza2poZGFza2pqYWRza2phc2hka2pha3NqaGRqYQ==
   expiration: 3600000           # 1h = 3600000 ms
