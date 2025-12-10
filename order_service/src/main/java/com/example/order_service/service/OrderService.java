@@ -1,13 +1,13 @@
 package com.example.order_service.service;
 
 import com.example.order_service.dto.*;
+import com.example.order_service.feign_client.AuthServiceClient;
 import com.example.order_service.feign_client.EventServiceClient;
 import com.example.order_service.feign_client.PaymentServiceClient;
 import com.example.order_service.model.*;
 import com.example.order_service.repository.OrderItemRepository;
 import com.example.order_service.repository.OrderRepository;
 import com.example.order_service.repository.PaymentInfoRepository;
-import com.example.order_service.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,12 +25,11 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final PaymentInfoRepository paymentInfoRepository;
-    private final TicketRepository ticketRepository;
     private final ReservationService reservationService;
-    private final TicketService ticketService;
-    private final EmailService emailService;
     private final EventServiceClient eventServiceClient;
     private final PaymentServiceClient paymentServiceClient;
+    private final KafkaProducerService kafkaProducerService;
+    private final AuthServiceClient authServiceClient;
 
     @Transactional
     public OrderResponse createOrder(OrderRequest request) {
@@ -49,10 +48,9 @@ public class OrderService {
             throw new RuntimeException("Order must contain either reservations or direct order items.");
         }
 
-        // 2. Calculate total amount and prepare order items/tickets
+        // 2. Calculate total amount and prepare order items
         BigDecimal totalAmount = BigDecimal.ZERO;
-        Map<Long, OrderItem> orderItemMap = new HashMap<>(); // Map to group tickets by ticketType
-        List<Ticket> ticketsToSave = new ArrayList<>();
+        Map<Long, OrderItem> orderItemMap = new HashMap<>(); // Map to group items by ticketType
 
         // Process reservations first
         for (Reservation res : reservations) {
@@ -64,19 +62,8 @@ public class OrderService {
                     OrderItem.builder()
                             .ticketTypeId(res.getTicketTypeId())
                             .price(BigDecimal.ZERO) // Price will be updated later
-                            .tickets(new ArrayList<>())
                             .build()
             );
-
-            // Create a Ticket for each reserved seat
-            Ticket ticket = Ticket.builder()
-                    .seatId(res.getSeatId())
-                    .ticketCode(UUID.randomUUID().toString()) // Generate unique ticket code
-                    .status(Ticket.TicketStatus.ISSUED)
-                    .orderItem(orderItem) // Link to orderItem
-                    .build();
-            ticketsToSave.add(ticket);
-            orderItem.getTickets().add(ticket);
 
             // Assuming price comes from the reservation or an external service
             // For now, let's assume a placeholder price per ticket type
@@ -93,21 +80,9 @@ public class OrderService {
                         OrderItem.builder()
                                 .ticketTypeId(itemRequest.getTicketTypeId())
                                 .price(BigDecimal.valueOf(itemRequest.getPrice()))
-                                .tickets(new ArrayList<>())
                                 .build()
                 );
                 totalAmount = totalAmount.add(BigDecimal.valueOf(itemRequest.getPrice()).multiply(BigDecimal.valueOf(itemRequest.getQuantity())));
-
-                for (int i = 0; i < itemRequest.getQuantity(); i++) {
-                    Ticket ticket = Ticket.builder()
-                            .seatId(itemRequest.getSeatIds() != null && i < itemRequest.getSeatIds().size() ? itemRequest.getSeatIds().get(i) : null)
-                            .ticketCode(UUID.randomUUID().toString())
-                            .status(Ticket.TicketStatus.ISSUED)
-                            .orderItem(orderItem)
-                            .build();
-                    ticketsToSave.add(ticket);
-                    orderItem.getTickets().add(ticket);
-                }
             }
         }
 
@@ -172,7 +147,6 @@ public class OrderService {
 
         // 6. Link Tickets to their respective OrderItems and save
         order.setItems(orderItems); // Ensure order has items before saving tickets
-        ticketRepository.saveAll(ticketsToSave);
 
         // 7. Create PaymentInfo
         PaymentInfo paymentInfo = PaymentInfo.builder()
@@ -252,25 +226,15 @@ public class OrderService {
 
         if (paymentStatus == PaymentInfo.PaymentStatus.SUCCESS) {
             order.setStatus(Order.OrderStatus.PAID);
-            orderRepository.save(order);
-            // Send order confirmation email
-            String orderDetails = String.format("Order ID: %d, Total Amount: %s %s",
-                                                order.getId(), order.getTotalAmount(), order.getCurrency());
-            // In a real app, you'd get the user's email from the auth service or user service
-            // For now, using a placeholder email
-            emailService.sendOrderConfirmationEmail("user@example.com", orderDetails);
-
-            // Send individual ticket emails
-            order.getItems().stream()
-                    .flatMap(orderItem -> orderItem.getTickets().stream())
-                    .forEach(ticket -> {
-                        // In a real app, you'd fetch event details, attendee name etc.
-                        String ticketDetails = String.format("Event: %s, Ticket Type: %d, Seat: %d",
-                                "Event Name Placeholder", ticket.getOrderItem().getTicketTypeId(), ticket.getSeatId());
-                        // Assuming attendee email is available on the ticket or from user service
-                        emailService.sendTicketEmail("attendee@example.com", ticketDetails, ticket.getTicketCode());
-                    });
-
+            String userEmail = authServiceClient.getUserEmailById(order.getUserId());
+            OrderPaidEvent event = OrderPaidEvent.builder()
+                    .orderId(order.getId())
+                    .userId(order.getUserId().toString())
+                    .userEmail(userEmail)
+                    .totalAmount(order.getTotalAmount().toString())
+                    .currency(order.getCurrency())
+                    .build();
+            kafkaProducerService.sendOrderPaidEvent(event);
         } else if (paymentStatus == PaymentInfo.PaymentStatus.FAILED) {
             order.setStatus(Order.OrderStatus.CANCELLED); // Or a specific FAILED status
             orderRepository.save(order);
@@ -316,6 +280,15 @@ public class OrderService {
         // Update order status based on payment transaction status
         if (paymentTransaction.getStatus().equals(PaymentInfo.PaymentStatus.SUCCESS.name())) {
             order.setStatus(Order.OrderStatus.PAID);
+            String userEmail = authServiceClient.getUserEmailById(order.getUserId());
+            OrderPaidEvent event = OrderPaidEvent.builder()
+                    .orderId(order.getId())
+                    .userId(order.getUserId().toString())
+                    .userEmail(userEmail)
+                    .totalAmount(order.getTotalAmount().toString())
+                    .currency(order.getCurrency())
+                    .build();
+            kafkaProducerService.sendOrderPaidEvent(event);
         } else if (paymentTransaction.getStatus().equals(PaymentInfo.PaymentStatus.FAILED.name())) {
             order.setStatus(Order.OrderStatus.CANCELLED); // Or a specific FAILED status
         }
@@ -375,40 +348,15 @@ public class OrderService {
 
         orderRepository.save(order);
 
-        // Delegate ticket status updates to TicketService
-        order.getItems().forEach(orderItem ->
-            orderItem.getTickets().forEach(ticket -> {
-                ticketService.updateTicketStatus(ticket.getTicketCode(), Ticket.TicketStatus.REFUNDED);
-            })
-        );
-    }
-
-    public List<Ticket> getTicketsForOrder(Long orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
-        return order.getItems().stream()
-                .flatMap(orderItem -> orderItem.getTickets().stream())
-                .collect(Collectors.toList());
+        // TODO: Publish 'order.cancelled' event to Kafka
     }
 
     @Transactional
     public void resendTicketsForOrder(Long orderId, String recipientEmail) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
-
-        if (order.getStatus() != Order.OrderStatus.PAID) {
-            throw new RuntimeException("Tickets can only be resent for PAID orders.");
-        }
-
-        order.getItems().stream()
-                .flatMap(orderItem -> orderItem.getTickets().stream())
-                .forEach(ticket -> {
-                    // In a real app, you'd fetch event details, attendee name etc.
-                    String ticketDetails = String.format("Event: %s, Ticket Type: %d, Seat: %d",
-                            "Event Name Placeholder", ticket.getOrderItem().getTicketTypeId(), ticket.getSeatId());
-                    emailService.sendTicketEmail(recipientEmail, ticketDetails, ticket.getTicketCode());
-                });
+        // This functionality is now handled by the notification_service.
+        // This method could publish a 'resend.tickets' event to Kafka.
     }
+
 
     // Removed getTicketsForUser, updateTicketStatus, and transferTicket as they are now in TicketService
 }

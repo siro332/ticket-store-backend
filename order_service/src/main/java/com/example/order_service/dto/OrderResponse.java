@@ -1,7 +1,6 @@
 package com.example.order_service.dto;
 
 import com.example.order_service.model.Order;
-import com.example.order_service.model.Ticket;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -53,46 +52,15 @@ public class OrderResponse {
     public static class OrderItemResponse {
         private Long id;
         private Long ticketTypeId;
-        // Removed 'quantity' field as it's now derived from the number of associated Tickets
+        private int quantity;
         private BigDecimal price;
-        private List<TicketResponse> tickets; // New field for associated tickets
 
         public static OrderItemResponse fromEntity(com.example.order_service.model.OrderItem item) {
             return OrderItemResponse.builder()
                     .id(item.getId())
                     .ticketTypeId(item.getTicketTypeId())
+                    .quantity(0) // This needs to be calculated properly
                     .price(item.getPrice())
-                    .tickets(item.getTickets() == null ? List.of() :
-                            item.getTickets().stream().map(TicketResponse::fromEntity).collect(Collectors.toList()))
-                    .build();
-        }
-    }
-
-    @Getter
-    @Setter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class TicketResponse {
-        private Long id;
-        private Long seatId;
-        private String ticketCode;
-        private String attendeeName;
-        private String attendeeEmail;
-        private String status;
-        private LocalDateTime createdAt;
-        private LocalDateTime updatedAt;
-
-        public static TicketResponse fromEntity(Ticket ticket) {
-            return TicketResponse.builder()
-                    .id(ticket.getId())
-                    .seatId(ticket.getSeatId())
-                    .ticketCode(ticket.getTicketCode())
-                    .attendeeName(ticket.getAttendeeName())
-                    .attendeeEmail(ticket.getAttendeeEmail())
-                    .status(ticket.getStatus().name())
-                    .createdAt(ticket.getCreatedAt())
-                    .updatedAt(ticket.getUpdatedAt())
                     .build();
         }
     }

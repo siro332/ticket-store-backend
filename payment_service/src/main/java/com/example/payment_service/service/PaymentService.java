@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Random;
 
 @Service
@@ -19,59 +20,53 @@ public class PaymentService {
 
     private final PaymentTransactionRepository repo;
     private final OrderClient orderClient;
-    private final Random random = new Random();
+    private final VnpayService vnpayService;
 
     @Transactional
     public PaymentTransaction processPayment(PaymentRequest req) {
-        // ... (existing code) ...
-        PaymentTransaction.Status transactionStatus;
-        PaymentInfoStatus orderPaymentStatus;
-
-        // Simple simulation: 80% success rate for Credit Card, 60% for PayPal, 90% for Bank Transfer
-        switch (req.getPaymentMethod().toLowerCase()) {
-            case "credit card":
-                // For E2E testing, always succeed credit card payments
-                transactionStatus = PaymentTransaction.Status.SUCCESS; 
-                // Original: transactionStatus = random.nextDouble() < 0.8 ? PaymentTransaction.Status.SUCCESS : PaymentTransaction.Status.FAILED;
-                break;
-            case "paypal":
-                transactionStatus = random.nextDouble() < 0.6 ? PaymentTransaction.Status.SUCCESS : PaymentTransaction.Status.FAILED;
-                break;
-            case "bank transfer":
-                transactionStatus = random.nextDouble() < 0.9 ? PaymentTransaction.Status.SUCCESS : PaymentTransaction.Status.FAILED;
-                break;
-            default:
-                transactionStatus = PaymentTransaction.Status.FAILED;
-                break;
-        }
+        String paymentUrl = vnpayService.createPaymentUrl(req.getOrderId(), req.getAmount().longValue());
 
         PaymentTransaction tx = PaymentTransaction.builder()
                 .orderId(req.getOrderId())
                 .amount(req.getAmount())
                 .paymentMethod(req.getPaymentMethod())
-                .transactionId("TX" + System.currentTimeMillis() + random.nextInt(1000))
-                .status(transactionStatus)
+                .transactionId("TX" + System.currentTimeMillis())
+                .status(PaymentTransaction.Status.PENDING)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
 
         PaymentTransaction savedTx = repo.save(tx);
-
-        if (transactionStatus == PaymentTransaction.Status.SUCCESS) {
-            orderPaymentStatus = PaymentInfoStatus.SUCCESS;
-        } else {
-            orderPaymentStatus = PaymentInfoStatus.FAILED;
-        }
-
-        // Update order status in order_service
-        try {
-            orderClient.processPayment(savedTx.getOrderId(), savedTx.getTransactionId(), orderPaymentStatus);
-        } catch (Exception e) {
-            // Log error, but don't fail the transaction if the callback fails (idempotency needed)
-            System.err.println("Failed to update order service: " + e.getMessage());
-        }
+        savedTx.setPaymentUrl(paymentUrl);
 
         return savedTx;
+    }
+
+    @Transactional
+    public void handleVnpayReturn(Map<String, String> params) {
+        String vnp_TxnRef = params.get("vnp_TxnRef");
+        String vnp_ResponseCode = params.get("vnp_ResponseCode");
+
+        PaymentTransaction tx = repo.findByVnpayTxnRef(vnp_TxnRef)
+                .orElseThrow(() -> new RuntimeException("Transaction not found with ref: " + vnp_TxnRef));
+
+        if ("00".equals(vnp_ResponseCode)) {
+            tx.setStatus(PaymentTransaction.Status.SUCCESS);
+            repo.save(tx);
+            try {
+                orderClient.processPayment(tx.getOrderId(), tx.getTransactionId(), PaymentInfoStatus.SUCCESS);
+            } catch (Exception e) {
+                System.err.println("Failed to update order service: " + e.getMessage());
+            }
+        } else {
+            tx.setStatus(PaymentTransaction.Status.FAILED);
+            repo.save(tx);
+            try {
+                orderClient.processPayment(tx.getOrderId(), tx.getTransactionId(), PaymentInfoStatus.FAILED);
+            } catch (Exception e) {
+                System.err.println("Failed to update order service: " + e.getMessage());
+            }
+        }
     }
 
     @Transactional

@@ -24,15 +24,14 @@ event:
 payment:
   service-url: http://localhost:8084 # URL for the payment service
 
-  mail:
-    host: localhost
-    port: 1025 # Common port for local mail development like MailHog
-    username: testuser
-    password: testpassword
-    properties:
-      mail.smtp.auth: false
-      mail.smtp.starttls.enable: false
-      mail.smtp.ssl.trust: "*" # For local development
+auth:
+  service-url: http://localhost:8081 # URL for the auth service
+
+kafka:
+  producer:
+    bootstrap-servers: kafka:29092
+    key-serializer: org.apache.kafka.common.serialization.StringSerializer
+    value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 logging: # Added logging configuration
   level:

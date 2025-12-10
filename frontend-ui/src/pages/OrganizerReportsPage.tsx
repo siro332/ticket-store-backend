@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const OrganizerReportsPage: React.FC = () => {
   const { user } = useAuth();
@@ -20,6 +21,7 @@ const OrganizerReportsPage: React.FC = () => {
   const [eventRevenue, setEventRevenue] = useState<number | null>(null);
   const [totalTicketsSold, setTotalTicketsSold] = useState<number | null>(null);
   const [eventTicketsSold, setEventTicketsSold] = useState<number | null>(null);
+  const [chartData, setChartData] = useState<{ name: string; revenue: number }[]>([]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -51,7 +53,7 @@ const OrganizerReportsPage: React.FC = () => {
   };
 
   const fetchReports = async () => {
-    if (events.length === 0 && !selectedEventId) {
+    if (events.length === 0) {
       if (!loading) {
         showNotification('No events available to generate reports.', 'info');
       }
@@ -59,12 +61,14 @@ const OrganizerReportsPage: React.FC = () => {
       setEventRevenue(null);
       setTotalTicketsSold(null);
       setEventTicketsSold(null);
+      setChartData([]);
       return;
     }
 
     try {
       let calculatedTotalRevenue = 0;
       let calculatedTotalTicketsSold = 0;
+      const newChartData: { name: string; revenue: number }[] = [];
 
       const eventsToReport = events.filter(event => event.organizerId === user?.id);
 
@@ -73,9 +77,11 @@ const OrganizerReportsPage: React.FC = () => {
         calculatedTotalRevenue += revenue;
         const ticketsSold = await ReportingService.getApiReportsTicketsEventSold(event.id!);
         calculatedTotalTicketsSold += ticketsSold;
+        newChartData.push({ name: event.name!, revenue });
       }
       setTotalRevenue(calculatedTotalRevenue);
       setTotalTicketsSold(calculatedTotalTicketsSold);
+      setChartData(newChartData);
 
       if (selectedEventId) {
         const parsedEventId = parseInt(selectedEventId);
@@ -187,10 +193,17 @@ const OrganizerReportsPage: React.FC = () => {
 
       <Card sx={{ mt: 4 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>Detailed Analytics (Coming Soon)</Typography>
-          <Typography variant="body2" color="text.secondary">
-            More detailed charts regarding sales channels, conversion rates, and peak sales times will be available here.
-          </Typography>
+          <Typography variant="h6" gutterBottom>Revenue by Event</Typography>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="revenue" fill="#8884d8" />
+            </BarChart>
+          </ResponsiveContainer>
         </CardContent>
       </Card>
     </Container>

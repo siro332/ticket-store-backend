@@ -115,12 +115,10 @@ const CheckoutPage: React.FC = () => {
 
       if (orderResponse.id) {
         const paymentTransaction = await OrdersService.postApiOrdersInitiatePayment(orderResponse.id, paymentMethod);
-        if (paymentTransaction.status === 'SUCCESS') {
-          showNotification('Order placed and payment initiated successfully!', 'success');
-          clearCart();
-          navigate(`/order-confirmation/${orderResponse.id}`);
+        if (paymentTransaction.paymentUrl) {
+          window.location.href = paymentTransaction.paymentUrl;
         } else {
-          showNotification('Payment failed. Please try again.', 'error');
+          showNotification('Failed to get payment URL. Please try again.', 'error');
         }
       }
 

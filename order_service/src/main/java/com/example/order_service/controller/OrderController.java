@@ -1,8 +1,5 @@
-package com.example.order_service.controller;
-
 import com.example.order_service.dto.OrderRequest;
 import com.example.order_service.dto.OrderResponse;
-import com.example.order_service.dto.OrderResponse.TicketResponse;
 import com.example.order_service.dto.PaymentTransactionDto;
 import com.example.order_service.model.Order;
 import com.example.order_service.model.PaymentInfo;
@@ -70,16 +67,6 @@ public class OrderController {
             @RequestParam String transactionId,
             @RequestParam PaymentInfo.PaymentStatus paymentStatus) {
         return ResponseEntity.ok(orderService.updatePaymentInfoStatus(id, transactionId, paymentStatus));
-    }
-
-    @GetMapping("/{id}/tickets")
-    @PreAuthorize("isAuthenticated() and authentication.principal.id == @orderSecurity.getOrder(#id).userId")
-    public ResponseEntity<List<TicketResponse>> getTicketsForOrder(@PathVariable Long id) {
-        // Convert Ticket model to TicketResponse DTO
-        List<TicketResponse> ticketResponses = orderService.getTicketsForOrder(id).stream()
-                .map(TicketResponse::fromEntity)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(ticketResponses);
     }
 
     // New endpoint to initiate payment

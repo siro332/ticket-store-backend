@@ -216,26 +216,25 @@ const EventDetailPage: React.FC = () => {
                 <Typography variant="h5" gutterBottom>Available Seats</Typography>
                 {seats.length > 0 ? (
                   <Box>
-                    <Select
-                      fullWidth
-                      displayEmpty
-                      value={selectedSeat}
-                      onChange={(e) => setSelectedSeat(e.target.value as number)}
-                      sx={{ mb: 2 }}
-                    >
-                      <MenuItem value="" disabled>Select a Seat</MenuItem>
+                    <Grid container spacing={1}>
                       {seats.map((seat) => (
-                        <MenuItem key={seat.id} value={seat.id}>
-                          {`Section: ${seat.section}, Row: ${seat.rowLabel}, Seat: ${seat.seatNumber}`}
-                        </MenuItem>
+                        <Grid item xs={2} key={seat.id}>
+                          <Button
+                            variant={selectedSeat === seat.id ? 'contained' : 'outlined'}
+                            fullWidth
+                            onClick={() => setSelectedSeat(seat.id!)}
+                            disabled={!seat.isAvailable}
+                          >
+                            {seat.seatNumber}
+                          </Button>
+                        </Grid>
                       ))}
-                    </Select>
+                    </Grid>
                     <Button
                       variant="contained"
                       fullWidth
                       disabled={!selectedSeat}
                       onClick={() => {
-                        // The seatId is taken from selectedSeat state, not passed as arg
                         if (typeof selectedSeat === 'number') {
                           const seatObj = seats.find(s => s.id === selectedSeat);
                           const ticketTypeForSeat = ticketTypes.find(tt => tt.id === seatObj?.ticketType?.id);
@@ -246,6 +245,7 @@ const EventDetailPage: React.FC = () => {
                           }
                         }
                       }}
+                      sx={{ mt: 2 }}
                     >
                       Add Selected Seat
                     </Button>

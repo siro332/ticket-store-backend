@@ -10,6 +10,9 @@ const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
+  const [fullNameError, setFullNameError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const { register, loading, isAuthenticated, error: authError } = useAuth();
   const navigate = useNavigate();
   const { showNotification } = useNotification();
@@ -39,7 +42,7 @@ const RegisterPage: React.FC = () => {
 
   return (
     <Container component="main" maxWidth="xs" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
-      <Card component={motion.div} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}>
+      <Card component={motion.div} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }} whileHover={{ scale: 1.02 }}>
         <CardContent sx={{ p: 4 }}>
           <Typography component="h1" variant="h4" align="center" gutterBottom>
             Register
@@ -54,7 +57,15 @@ const RegisterPage: React.FC = () => {
               name="fullName"
               autoFocus
               value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              onChange={(e) => {
+                setFullName(e.target.value);
+                if (e.target.value) setFullNameError('');
+              }}
+              onBlur={() => {
+                if (!fullName) setFullNameError('Full name is required.');
+              }}
+              error={!!fullNameError}
+              helperText={fullNameError}
             />
             <TextField
               margin="normal"
@@ -65,7 +76,19 @@ const RegisterPage: React.FC = () => {
               name="email"
               autoComplete="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e.target.value)) {
+                  setEmailError('');
+                }
+              }}
+              onBlur={() => {
+                if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+                  setEmailError('Please enter a valid email address.');
+                }
+              }}
+              error={!!emailError}
+              helperText={emailError}
             />
             <TextField
               margin="normal"
@@ -77,7 +100,19 @@ const RegisterPage: React.FC = () => {
               id="password"
               autoComplete="new-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (e.target.value.length >= 8) {
+                  setPasswordError('');
+                }
+              }}
+              onBlur={() => {
+                if (password.length < 8) {
+                  setPasswordError('Password must be at least 8 characters long.');
+                }
+              }}
+              error={!!passwordError}
+              helperText={passwordError}
             />
             <TextField
               margin="normal"
@@ -93,7 +128,7 @@ const RegisterPage: React.FC = () => {
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
-              disabled={loading}
+              disabled={loading || !!fullNameError || !!emailError || !!passwordError || !fullName || !email || !password}
             >
               {loading ? 'Registering...' : 'Register'}
             </Button>

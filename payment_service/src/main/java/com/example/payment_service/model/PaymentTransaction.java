@@ -24,6 +24,10 @@ public class PaymentTransaction {
     private String transactionId;
     private BigDecimal amount;
 
+    @Transient
+    private String paymentUrl;
+    private String vnpayTxnRef;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 20) // Ensure column is large enough for enum names
     private Status status;

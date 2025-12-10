@@ -18,12 +18,6 @@ const LoginPage: React.FC = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  React.useEffect(() => {
-    if (authError) {
-      showNotification(authError, 'danger');
-    }
-  }, [authError, showNotification]);
-
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     console.log('LoginPage: handleSubmit called, attempting login...');
@@ -37,11 +31,16 @@ const LoginPage: React.FC = () => {
 
   return (
     <Container component="main" maxWidth="xs" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
-      <Card component={motion.div} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}>
+      <Card component={motion.div} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }} whileHover={{ scale: 1.02 }}>
         <CardContent sx={{ p: 4 }}>
           <Typography component="h1" variant="h4" align="center" gutterBottom>
             Login
           </Typography>
+          {authError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {authError}
+            </Alert>
+          )}
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
             <TextField
               margin="normal"

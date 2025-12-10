@@ -26,6 +26,4 @@ public class OrderItem {
     // Removed 'quantity' field as it's now derived from the number of associated Tickets
     private BigDecimal price;
 
-    @OneToMany(mappedBy = "orderItem", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Ticket> tickets;
 }

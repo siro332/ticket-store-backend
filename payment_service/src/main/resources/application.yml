@@ -21,3 +21,9 @@ jwt:
 
 order:
   service-url: http://localhost:8083
+
+vnpay:
+  tmn-code: YOUR_TMN_CODE
+  hash-secret: YOUR_HASH_SECRET
+  pay-url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+  return-url: http://localhost:3000/payment-return

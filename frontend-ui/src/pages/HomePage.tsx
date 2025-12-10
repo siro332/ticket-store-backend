@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, Button, Grid, Card, CardContent, Box, Stack, CircularProgress, CardMedia, Alert } from '@mui/material';
+import { Container, Typography, Button, Grid, Card, CardContent, Box, Stack, CircularProgress, CardMedia, Alert, Tabs, Tab } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import LocalActivityOutlinedIcon from '@mui/icons-material/LocalActivityOutlined';
@@ -13,26 +13,34 @@ import { useNotification } from '../context/NotificationContext';
 
 const HomePage: React.FC = () => {
   const { showNotification } = useNotification();
-  const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
-  const [loadingFeaturedEvents, setLoadingFeaturedEvents] = useState<boolean>(true);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'popular'>('upcoming');
 
   useEffect(() => {
-    const fetchFeaturedEvents = async () => {
-      setLoadingFeaturedEvents(true);
+    const fetchEvents = async () => {
+      setLoadingEvents(true);
       try {
         const response = await EventsService.getApiEventsSearch(
-          undefined, undefined, undefined, undefined, undefined, undefined, undefined, 0, 3 // Fetch first 3 events
+          undefined, undefined, undefined, undefined, undefined, undefined, 
+          activeTab === 'upcoming' ? 'startTime' : undefined, 
+          0, 6
         );
-        setFeaturedEvents(response.content || []);
+        let fetchedEvents = response.content || [];
+        if (activeTab === 'popular') {
+          // Placeholder for popularity: shuffle the fetched events
+          fetchedEvents = fetchedEvents.sort(() => Math.random() - 0.5);
+        }
+        setEvents(fetchedEvents);
       } catch (err: any) {
-        showNotification(err.message || 'Failed to fetch featured events', 'error');
-        console.error("Failed to fetch featured events:", err);
+        showNotification(err.message || 'Failed to fetch events', 'error');
+        console.error("Failed to fetch events:", err);
       } finally {
-        setLoadingFeaturedEvents(false);
+        setLoadingEvents(false);
       }
     };
-    fetchFeaturedEvents();
-  }, [showNotification]);
+    fetchEvents();
+  }, [showNotification, activeTab]);
 
   return (
     <Box>
@@ -220,24 +228,36 @@ const HomePage: React.FC = () => {
 
       {/* Featured Events Section */}
       <Container sx={{ mb: 8 }}>
-        <Box sx={{ textAlign: 'center', mb: 6 }}>
+        <Box sx={{ textAlign: 'center', mb: 3 }}>
           <Typography variant="h6" color="primary" fontWeight={700} gutterBottom>
             EXPLORE
           </Typography>
           <Typography variant="h3" fontWeight={700}>
-            Upcoming Events
+            {activeTab === 'upcoming' ? 'Upcoming Events' : 'Most Popular'}
           </Typography>
         </Box>
+        
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+          <Tabs
+            value={activeTab}
+            onChange={(e, newValue) => setActiveTab(newValue)}
+            indicatorColor="primary"
+            textColor="primary"
+          >
+            <Tab label="Upcoming" value="upcoming" />
+            <Tab label="Most Popular" value="popular" />
+          </Tabs>
+        </Box>
 
-        {loadingFeaturedEvents ? (
+        {loadingEvents ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress />
           </Box>
-        ) : featuredEvents.length === 0 ? (
-          <Alert severity="info" sx={{ textAlign: 'center' }}>No featured events available at the moment.</Alert>
+        ) : events.length === 0 ? (
+          <Alert severity="info" sx={{ textAlign: 'center' }}>No events available for this category.</Alert>
         ) : (
           <Grid container spacing={4}>
-            {featuredEvents.map((event, index) => (
+            {events.map((event, index) => (
               <Grid item xs={12} sm={6} md={4} key={event.id}>
                 <Card
                   component={motion.div}

@@ -28,8 +28,9 @@ import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import OrderConfirmationPage from './pages/OrderConfirmationPage';
 import OrderDetailsPage from './pages/OrderDetailsPage';
+import OrderHistoryPage from './pages/OrderHistoryPage';
 import MyTicketsPage from './pages/MyTicketsPage';
-import ProfilePage from './pages/ProfilePage'; // Import ProfilePage
+import ProfilePage from './pages/ProfilePage';
 import EventFormPage from './pages/EventFormPage';
 import OrganizerOrdersPage from './pages/OrganizerOrdersPage';
 import OrganizerReportsPage from './pages/OrganizerReportsPage';
@@ -38,6 +39,8 @@ import AdminSupportPage from './pages/AdminSupportPage';
 import AdminContentManagementPage from './pages/AdminContentManagementPage';
 import OrganizerDashboardPage from './pages/OrganizerDashboardPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
+import AdminEventApprovalPage from './pages/AdminEventApprovalPage';
+import PaymentReturnPage from './pages/PaymentReturnPage';
 import { CircularProgress, Box } from '@mui/material';
 
 const AppContent: React.FC = () => {
@@ -60,11 +63,13 @@ const AppContent: React.FC = () => {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/cart" element={<CartPage />} />
+        <Route path="/payment-return" element={<PaymentReturnPage />} />
 
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/profile" element={<ProfilePage />} /> {/* New protected route for ProfilePage */}
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/my-tickets" element={<MyTicketsPage />} />
+          <Route path="/my-orders" element={<OrderHistoryPage />} />
           <Route path="/my-orders/:id" element={<OrderDetailsPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/order-confirmation/:id" element={<OrderConfirmationPage />} />
@@ -81,6 +86,7 @@ const AppContent: React.FC = () => {
         </Route>
         <Route element={<ProtectedRoute allowedRoles={['ROLE_ADMIN']} />}>
           <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+          <Route path="/admin/events" element={<AdminEventApprovalPage />} />
           <Route path="/admin/support" element={<AdminSupportPage />} />
           <Route path="/admin/content" element={<AdminContentManagementPage />} />
         </Route>

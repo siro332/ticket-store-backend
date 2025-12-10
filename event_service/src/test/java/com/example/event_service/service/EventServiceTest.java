@@ -11,6 +11,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -19,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -61,38 +66,31 @@ public class EventServiceTest {
 
     @Test
     void searchEvents_FilterByName() {
-        when(eventRepository.findAll()).thenReturn(Arrays.asList(event1, event2));
+        when(eventRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(Collections.singletonList(event1)));
         
-        List<Event> results = eventService.searchEvents("Rock", null, null, null, null, null, null);
+        Page<Event> results = eventService.searchEvents("Rock", null, null, null, null, null, null, Pageable.unpaged());
         
-        assertEquals(1, results.size());
-        assertEquals("Rock Concert", results.get(0).getName());
+        assertEquals(1, results.getContent().size());
+        assertEquals("Rock Concert", results.getContent().get(0).getName());
     }
 
     @Test
     void searchEvents_FilterByCategory() {
-        when(eventRepository.findAll()).thenReturn(Arrays.asList(event1, event2));
+        when(eventRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(Collections.singletonList(event2)));
 
-        List<Event> results = eventService.searchEvents(null, "Tech", null, null, null, null, null);
+        Page<Event> results = eventService.searchEvents(null, "Tech", null, null, null, null, null, Pageable.unpaged());
 
-        assertEquals(1, results.size());
-        assertEquals("Tech Conference", results.get(0).getName());
+        assertEquals(1, results.getContent().size());
+        assertEquals("Tech Conference", results.getContent().get(0).getName());
     }
 
     @Test
     void searchEvents_FilterByPrice() {
-        when(eventRepository.findAll()).thenReturn(Arrays.asList(event1, event2));
+        when(eventRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(Collections.singletonList(event1)));
         
-        TicketType t1 = TicketType.builder().price(BigDecimal.valueOf(50)).build();
-        TicketType t2 = TicketType.builder().price(BigDecimal.valueOf(150)).build();
+        Page<Event> results = eventService.searchEvents(null, null, null, null, null, BigDecimal.valueOf(100), null, Pageable.unpaged());
 
-        when(ticketTypeRepository.findByEventId(1L)).thenReturn(Collections.singletonList(t1));
-        when(ticketTypeRepository.findByEventId(2L)).thenReturn(Collections.singletonList(t2));
-
-        // Search for max price 100 (should find event1 only)
-        List<Event> results = eventService.searchEvents(null, null, null, null, null, BigDecimal.valueOf(100), null);
-
-        assertEquals(1, results.size());
-        assertEquals("Rock Concert", results.get(0).getName());
+        assertEquals(1, results.getContent().size());
+        assertEquals("Rock Concert", results.getContent().get(0).getName());
     }
 }

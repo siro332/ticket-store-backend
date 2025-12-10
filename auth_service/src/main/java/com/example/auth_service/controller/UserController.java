@@ -18,6 +18,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.UUID;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PathVariable;
+import java.util.Arrays;
+
 
 @RestController
 @RequestMapping("/api/users")
@@ -61,5 +66,25 @@ public class UserController {
                 "permissions", allPermissions, // Aggregated permissions
                 "organizationRoles", orgRoleDtos
         ));
+    }
+
+    @GetMapping("/{userId}/assigned-events")
+    public ResponseEntity<List<Long>> getAssignedEvents(@PathVariable String userId) {
+        // Mock implementation
+        return ResponseEntity.ok(Arrays.asList(1L, 2L, 3L));
+    }
+
+    @GetMapping("/{userId}/email")
+    public ResponseEntity<String> getUserEmailById(@PathVariable String userId) {
+        User user = userRepository.findById(UUID.fromString(userId))
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+        return ResponseEntity.ok(user.getEmail());
+    }
+
+    @GetMapping("/id-by-email")
+    public ResponseEntity<String> getUserIdByEmail(@RequestParam("email") String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+        return ResponseEntity.ok(user.getId().toString());
     }
 }

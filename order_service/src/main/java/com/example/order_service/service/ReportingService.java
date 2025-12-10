@@ -1,54 +1,41 @@
 package com.example.order_service.service;
 
 import com.example.order_service.model.Order;
-import com.example.order_service.model.Ticket;
 import com.example.order_service.repository.OrderRepository;
-import com.example.order_service.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class ReportingService {
-
     private final OrderRepository orderRepository;
-    private final TicketRepository ticketRepository;
+
+    public BigDecimal getRevenueByEvent(Long eventId) {
+        List<Order> orders = orderRepository.findByEventIdAndStatus(eventId, Order.OrderStatus.PAID);
+        return orders.stream()
+                .map(Order::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    public long getTicketsSoldByEvent(Long eventId) {
+        // This logic needs to be re-implemented.
+        // It should probably fetch this information from the ticket_service.
+        return 0;
+    }
 
     public BigDecimal calculateTotalRevenue() {
-        return orderRepository.findAll().stream()
-                .filter(order -> order.getStatus() == Order.OrderStatus.PAID)
+        List<Order> orders = orderRepository.findByStatus(Order.OrderStatus.PAID);
+        return orders.stream()
                 .map(Order::getTotalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    public BigDecimal calculateRevenueForEvent(Long eventId) {
-        return orderRepository.findByEventId(eventId).stream()
-                .filter(order -> order.getStatus() == Order.OrderStatus.PAID)
-                .map(Order::getTotalAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    public long getTotalTicketsSold() {
+        // This logic needs to be re-implemented.
+        // It should probably fetch this information from the ticket_service.
+        return 0;
     }
-
-    public Long getTotalTicketsSold() {
-        return ticketRepository.findAll().stream()
-                .filter(ticket -> ticket.getStatus() == Ticket.TicketStatus.ISSUED ||
-                                   ticket.getStatus() == Ticket.TicketStatus.SCANNED ||
-                                   ticket.getStatus() == Ticket.TicketStatus.TRANSFERRED)
-                .count();
-    }
-
-    public Long getTicketsSoldForEvent(Long eventId) {
-        return ticketRepository.findByOrderItem_Order_EventId(eventId).stream()
-                .filter(ticket -> ticket.getStatus() == Ticket.TicketStatus.ISSUED ||
-                                   ticket.getStatus() == Ticket.TicketStatus.SCANNED ||
-                                   ticket.getStatus() == Ticket.TicketStatus.TRANSFERRED)
-                .count();
-    }
-
-    // You can add more sophisticated reporting methods here, e.g.:
-    // - Revenue over time (daily, weekly, monthly)
-    // - Sales by category
-    // - Peak sales times
-    // - Export to CSV (this would involve creating a CSV generation utility)
 }

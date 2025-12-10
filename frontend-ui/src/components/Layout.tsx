@@ -92,26 +92,57 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </Button>
               
               {isAuthenticated && (
-                <Button 
-                  component={RouterLink} 
-                  to="/my-tickets"
-                  color={isActive('/my-tickets') ? 'primary' : 'inherit'}
-                  sx={{ fontWeight: isActive('/my-tickets') ? 600 : 500 }}
-                >
-                  My Tickets
-                </Button>
+                <>
+                  <Button 
+                    component={RouterLink} 
+                    to="/my-tickets"
+                    color={isActive('/my-tickets') ? 'primary' : 'inherit'}
+                    sx={{ fontWeight: isActive('/my-tickets') ? 600 : 500 }}
+                  >
+                    My Tickets
+                  </Button>
+                  <Button 
+                    component={RouterLink} 
+                    to="/my-orders"
+                    color={isActive('/my-orders') ? 'primary' : 'inherit'}
+                    sx={{ fontWeight: isActive('/my-orders') ? 600 : 500 }}
+                  >
+                    Order History
+                  </Button>
+                </>
               )}
 
               {hasOrganizerRole && (
-                 <Button component={RouterLink} to="/organizer/dashboard" color="inherit">Organizer</Button>
+                 <Button 
+                   component={RouterLink} 
+                   to="/organizer/dashboard" 
+                   color={isActive('/organizer/dashboard') ? 'primary' : 'inherit'}
+                   sx={{ fontWeight: isActive('/organizer/dashboard') ? 600 : 500 }}
+                 >
+                   Organizer
+                 </Button>
               )}
               
               {hasAdminRole && (
-                 <Button component={RouterLink} to="/admin/dashboard" color="inherit">Admin</Button>
+                 <Button 
+                   component={RouterLink} 
+                   to="/admin/dashboard" 
+                   color={isActive('/admin/dashboard') ? 'primary' : 'inherit'}
+                   sx={{ fontWeight: isActive('/admin/dashboard') ? 600 : 500 }}
+                 >
+                   Admin
+                 </Button>
               )}
 
               {hasStaffAccess && (
-                 <Button component={RouterLink} to="/staff/checkin" color="inherit">Check-in</Button>
+                 <Button 
+                   component={RouterLink} 
+                   to="/staff/checkin" 
+                   color={isActive('/staff/checkin') ? 'primary' : 'inherit'}
+                   sx={{ fontWeight: isActive('/staff/checkin') ? 600 : 500 }}
+                 >
+                   Check-in
+                 </Button>
               )}
             </Box>
 
@@ -214,22 +245,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <Grid item xs={6} md={2}>
               <Typography variant="subtitle2" color="text.primary" gutterBottom>Product</Typography>
               <Box component="ul" sx={{ p: 0, m: 0, listStyle: 'none' }}>
-                <Box component="li" sx={{ mb: 1 }}><MuiLink component={RouterLink} to="/events" color="text.secondary" underline="hover">Events</MuiLink></Box>
-                <Box component="li" sx={{ mb: 1 }}><MuiLink component={RouterLink} to="/pricing" color="text.secondary" underline="hover">Pricing</MuiLink></Box>
+                <Box component="li" sx={{ mb: 1 }}><MuiLink component={RouterLink} to="/events" color={isActive('/events') ? 'primary' : 'text.secondary'} sx={{ fontWeight: isActive('/events') ? 'bold' : 'normal' }} underline="hover">Events</MuiLink></Box>
+                <Box component="li" sx={{ mb: 1 }}><MuiLink component={RouterLink} to="/pricing" color={isActive('/pricing') ? 'primary' : 'text.secondary'} sx={{ fontWeight: isActive('/pricing') ? 'bold' : 'normal' }} underline="hover">Pricing</MuiLink></Box>
               </Box>
             </Grid>
             <Grid item xs={6} md={2}>
               <Typography variant="subtitle2" color="text.primary" gutterBottom>Company</Typography>
               <Box component="ul" sx={{ p: 0, m: 0, listStyle: 'none' }}>
-                <Box component="li" sx={{ mb: 1 }}><MuiLink component={RouterLink} to="/about" color="text.secondary" underline="hover">About</MuiLink></Box>
-                <Box component="li" sx={{ mb: 1 }}><MuiLink component={RouterLink} to="/careers" color="text.secondary" underline="hover">Careers</MuiLink></Box>
+                <Box component="li" sx={{ mb: 1 }}><MuiLink component={RouterLink} to="/about" color={isActive('/about') ? 'primary' : 'text.secondary'} sx={{ fontWeight: isActive('/about') ? 'bold' : 'normal' }} underline="hover">About</MuiLink></Box>
+                <Box component="li" sx={{ mb: 1 }}><MuiLink component={RouterLink} to="/careers" color={isActive('/careers') ? 'primary' : 'text.secondary'} sx={{ fontWeight: isActive('/careers') ? 'bold' : 'normal' }} underline="hover">Careers</MuiLink></Box>
               </Box>
             </Grid>
             <Grid item xs={6} md={2}>
               <Typography variant="subtitle2" color="text.primary" gutterBottom>Legal</Typography>
               <Box component="ul" sx={{ p: 0, m: 0, listStyle: 'none' }}>
-                <Box component="li" sx={{ mb: 1 }}><MuiLink component={RouterLink} to="/terms" color="text.secondary" underline="hover">Terms</MuiLink></Box>
-                <Box component="li" sx={{ mb: 1 }}><MuiLink component={RouterLink} to="/privacy" color="text.secondary" underline="hover">Privacy</MuiLink></Box>
+                <Box component="li" sx={{ mb: 1 }}><MuiLink component={RouterLink} to="/terms" color={isActive('/terms') ? 'primary' : 'text.secondary'} sx={{ fontWeight: isActive('/terms') ? 'bold' : 'normal' }} underline="hover">Terms</MuiLink></Box>
+                <Box component="li" sx={{ mb: 1 }}><MuiLink component={RouterLink} to="/privacy" color={isActive('/privacy') ? 'primary' : 'text.secondary'} sx={{ fontWeight: isActive('/privacy') ? 'bold' : 'normal' }} underline="hover">Privacy</MuiLink></Box>
               </Box>
             </Grid>
           </Grid>

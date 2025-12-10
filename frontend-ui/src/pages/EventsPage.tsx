@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Container, Grid, Card, CardContent, CardMedia, Typography, Button, Box, TextField, CircularProgress, Paper, InputAdornment, Pagination, Stack } from '@mui/material';
+import { Container, Grid, Card, CardContent, CardMedia, Typography, Button, Box, TextField, CircularProgress, Paper, InputAdornment, Pagination, Stack, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import { EventsService } from '../api/services/EventsService';
 import type { Event } from '../api/models/Event';
 import { Link as RouterLink } from 'react-router-dom';
@@ -10,6 +10,8 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 
 const EVENTS_PER_PAGE = 9;
+const categories = ['Music', 'Sports', 'Arts & Theater', 'Conferences', 'Festivals', 'Other'];
+const locations = ['Ho Chi Minh City', 'Hanoi', 'Da Nang', 'Hoi An', 'Nha Trang'];
 
 const EventsPage: React.FC = () => {
   const { showNotification } = useNotification();
@@ -144,24 +146,30 @@ const EventsPage: React.FC = () => {
               />
             </Grid>
             <Grid item xs={12} sm={6} md={2}>
-              <TextField
-                fullWidth
-                label="Category"
-                variant="outlined"
-                size="medium"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              />
+              <FormControl fullWidth variant="outlined">
+                <InputLabel>Category</InputLabel>
+                <Select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as string)}
+                  label="Category"
+                >
+                  <MenuItem value=""><em>All</em></MenuItem>
+                  {categories.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
+                </Select>
+              </FormControl>
             </Grid>
             <Grid item xs={12} sm={6} md={2}>
-              <TextField
-                fullWidth
-                label="Location"
-                variant="outlined"
-                size="medium"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-              />
+              <FormControl fullWidth variant="outlined">
+                <InputLabel>Location</InputLabel>
+                <Select
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value as string)}
+                  label="Location"
+                >
+                  <MenuItem value=""><em>All</em></MenuItem>
+                  {locations.map(l => <MenuItem key={l} value={l}>{l}</MenuItem>)}
+                </Select>
+              </FormControl>
             </Grid>
             <Grid item xs={6} md={1.5}>
               <TextField

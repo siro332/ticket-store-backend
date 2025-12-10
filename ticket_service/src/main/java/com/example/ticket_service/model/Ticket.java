@@ -1,4 +1,4 @@
-package com.example.order_service.model;
+package com.example.ticket_service.model;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -17,10 +17,9 @@ public class Ticket {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_item_id")
-    private OrderItem orderItem;
-
+    private Long orderId;
+    private Long eventId;
+    private String userId;
     private Long seatId; // Link to specific seat if applicable
     private String ticketCode; // Unique code for QR/PDF
     private String attendeeName;
@@ -44,7 +43,5 @@ public class Ticket {
         updatedAt = LocalDateTime.now();
     }
 
-    public enum TicketStatus {
-        ISSUED, SCANNED, REFUNDED, TRANSFERRED
-    }
+
 }

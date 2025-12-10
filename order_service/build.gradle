@@ -50,8 +50,8 @@ dependencies {
     // Added Feign Client for inter-service communication
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 
-    // Added for email sending
-    implementation 'org.springframework.boot:spring-boot-starter-mail'
+    // Added for Kafka messaging
+    implementation 'org.springframework.kafka:spring-kafka'
 
     // Added for QR code generation
     implementation 'com.google.zxing:core:3.5.2'

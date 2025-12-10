@@ -7,7 +7,6 @@ import com.example.order_service.feign_client.PaymentServiceClient;
 import com.example.order_service.model.Order;
 import com.example.order_service.model.PaymentInfo;
 import com.example.order_service.repository.OrderRepository;
-import com.example.order_service.repository.TicketRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -32,17 +32,11 @@ public class OrderServiceTest {
     private OrderRepository orderRepository;
     
     @Mock
-    private TicketRepository ticketRepository;
-
-    @Mock
     private EventServiceClient eventServiceClient;
 
     @Mock
     private PaymentServiceClient paymentServiceClient;
     
-    @Mock
-    private TicketService ticketService;
-
     @InjectMocks
     private OrderService orderService;
 
@@ -53,7 +47,7 @@ public class OrderServiceTest {
     void setUp() {
         order = Order.builder()
                 .id(1L)
-                .userId(100L)
+                .userId(UUID.fromString("123e4567-e89b-12d3-a456-426614174000"))
                 .eventId(10L)
                 .totalAmount(BigDecimal.valueOf(100))
                 .status(Order.OrderStatus.PAID)

@@ -21,21 +21,21 @@ public class ReportingController {
 
     @GetMapping("/revenue/total")
     public ResponseEntity<BigDecimal> getTotalRevenue() {
-        return ResponseEntity.ok(reportingService.calculateTotalRevenue());
+        return ResponseEntity.ok(reportingService.calculateTotalRevenue()); // TODO: Implement in ReportingService
     }
 
     @GetMapping("/revenue/event/{eventId}")
     public ResponseEntity<BigDecimal> getRevenueForEvent(@PathVariable Long eventId) {
-        return ResponseEntity.ok(reportingService.calculateRevenueForEvent(eventId));
+        return ResponseEntity.ok(reportingService.getRevenueByEvent(eventId));
     }
 
     @GetMapping("/tickets/total-sold")
     public ResponseEntity<Long> getTotalTicketsSold() {
-        return ResponseEntity.ok(reportingService.getTotalTicketsSold());
+        return ResponseEntity.ok(reportingService.getTotalTicketsSold()); // TODO: Implement in ReportingService
     }
 
     @GetMapping("/tickets/event/{eventId}/sold")
     public ResponseEntity<Long> getTicketsSoldForEvent(@PathVariable Long eventId) {
-        return ResponseEntity.ok(reportingService.getTicketsSoldForEvent(eventId));
+        return ResponseEntity.ok(reportingService.getTicketsSoldByEvent(eventId));
     }
 }
