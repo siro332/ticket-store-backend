@@ -8,9 +8,12 @@ participant "Auth Service" as Auth
 participant "Event Service" as Event
 participant "Order Service" as Order
 participant "Payment Service" as Payment
+participant "Ticket Service" as TicketService
+participant "Notification Service" as Notification
 database "Event DB" as EventDB
 database "Order DB" as OrderDB
 database "Payment DB" as PaymentDB
+database "Ticket DB" as TicketDB
 
 group Event Discovery & Reservation (Attendee)
     User -> Gateway : GET /api/events/search?category=Music
@@ -105,45 +108,73 @@ group Payment Processing (Attendee)
     activate OrderDB
     OrderDB --> Order : Order Updated
     deactivate OrderDB
-    Order -> Order : Generate Tickets (ISSUED)
-    Order -> Order : Send Email/SMS
+    
+    par Async Processing
+        Order -[#blue]> Notification : Event: order.paid
+        activate Notification
+        Notification -> Notification : Send Confirmation Email
+        deactivate Notification
+
+        Order -[#blue]> TicketService : Event: order.paid
+        activate TicketService
+        TicketService -> Order : GET /api/orders/{orderId}
+        activate Order
+        Order --> TicketService : OrderDetails
+        deactivate Order
+        TicketService -> TicketDB : Generate & Save Tickets (ISSUED)
+        activate TicketDB
+        TicketDB --> TicketService : Saved
+        deactivate TicketDB
+        deactivate TicketService
+    end
+    
     Order --> Payment : Confirmation
     deactivate Order
 end
 
 group Ticket Operations (Attendee & Staff)
-    User -> Gateway : GET /api/orders/{orderId}/tickets
+    User -> Gateway : GET /api/tickets/my-tickets
     activate Gateway
     Gateway -> Auth : Validate Token (User)
     activate Auth
     Auth --> Gateway : Valid
     deactivate Auth
-    Gateway -> Order : getTicketsForOrder(orderId)
-    activate Order
-    Order -> OrderDB : Query Tickets
-    OrderDB --> Order : Ticket List
-    deactivate OrderDB
-    Order --> Gateway : Ticket List (TicketResponse DTO)
-    deactivate Order
+    Gateway -> TicketService : getTicketsForUser(userId)
+    activate TicketService
+    TicketService -> TicketDB : Query Tickets
+    activate TicketDB
+    TicketDB --> TicketService : Ticket List
+    deactivate TicketDB
+    TicketService --> Gateway : Ticket List
+    deactivate TicketService
     Gateway --> User : Display Tickets
     deactivate Gateway
 
-    User -> Gateway : POST /api/tickets/{ticketCode}/transfer (newAttendeeName, newAttendeeEmail)
+    User -> Gateway : POST /api/tickets/{ticketCode}/transfer (recipientEmail)
     activate Gateway
     Gateway -> Auth : Validate Token (User)
     activate Auth
     Auth --> Gateway : Valid
     deactivate Auth
-    Gateway -> Order : transferTicket(ticketCode, newAttendeeName, newAttendeeEmail)
-    activate Order
-    Order -> OrderDB : Update Ticket details (status=TRANSFERRED)
-    activate OrderDB
-    OrderDB --> Order : Ticket Updated
-    deactivate OrderDB
-    Order --> Gateway : TicketResponse
-    deactivate Order
-    Gateway --> User : Transfer Confirmation
+    Gateway -> TicketService : transferTicket(ticketCode, request)
+    activate TicketService
+    TicketService -> TicketDB : Create Transfer (PENDING)
+    activate TicketDB
+    TicketDB --> TicketService : Saved
+    deactivate TicketDB
+    TicketService -[#blue]> Notification : Event: ticket.transfer.requested
+    activate Notification
+    Notification -> Notification : Send Admin Email
+    deactivate Notification
+    TicketService --> Gateway : Transfer Initiated
+    deactivate TicketService
+    Gateway --> User : Transfer Pending Approval
     deactivate Gateway
+
+    ' Admin Approval Flow (Simplified)
+    ' Admin -> TicketService : approveTransfer(transferId)
+    ' TicketService -> TicketService : Update Ticket Owner & Status
+    ' TicketService -[#blue]> Notification : Event: ticket.transfer.completed
 
     Staff -> Gateway : POST /api/tickets/{ticketCode}/scan (gate, deviceId)
     activate Staff
@@ -152,18 +183,18 @@ group Ticket Operations (Attendee & Staff)
     activate Auth
     Auth --> Gateway : Valid
     deactivate Auth
-    Gateway -> Order : scanTicket(ticketCode, gate, deviceId)
-    activate Order
-    Order -> OrderDB : Read Ticket
-    activate OrderDB
-    OrderDB --> Order : Ticket Details
-    deactivate OrderDB
-    Order -> OrderDB : Update Ticket Status (SCANNED), Create CheckInLog
-    activate OrderDB
-    OrderDB --> Order : Status Updated, Log Created
-    deactivate OrderDB
-    Order --> Gateway : TicketResponse (SCANNED)
-    deactivate Order
+    Gateway -> TicketService : scanTicket(ticketCode, gate, deviceId)
+    activate TicketService
+    TicketService -> TicketDB : Read Ticket
+    activate TicketDB
+    TicketDB --> TicketService : Ticket Details
+    deactivate TicketDB
+    TicketService -> TicketDB : Update Status (SCANNED)
+    activate TicketDB
+    TicketDB --> TicketService : Status Updated
+    deactivate TicketDB
+    TicketService --> Gateway : Scan Result
+    deactivate TicketService
     Gateway --> Staff : Scan Confirmation
     deactivate Gateway
 end

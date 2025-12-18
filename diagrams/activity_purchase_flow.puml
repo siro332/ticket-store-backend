@@ -38,9 +38,12 @@ partition "Payment Processing & Fulfillment" {
     if (Payment Successful?) then (yes)
         :System receives Payment Callback;
         :Update Order to PAID;
-        :Generate Tickets (ISSUED status);
-        :Send Email/SMS with Tickets;
-        :Log check-in;
+        fork
+            :Publish 'order.paid' Event;
+            :Ticket Service generates Tickets (ISSUED);
+        fork again
+            :Notification Service sends Email/SMS;
+        end fork
     else (no)
         :Update Order to FAILED / CANCELLED;
         :Release Reservations;
@@ -49,14 +52,15 @@ partition "Payment Processing & Fulfillment" {
 }
 
 partition "Post-Purchase & Operations" {
-    :User views/manages their Tickets/Orders;
+    :User views/manages their Tickets (via Ticket Service);
     if (Organizer enables ticket transfer) then (yes)
         :User requests Ticket Transfer;
-        :System transfers Ticket (TRANSFERRED status);
+        :Ticket Service processes Transfer (TRANSFERRED);
+        :Notification Service sends Transfer Email;
     endif
     if (Organizer enables name change) then (yes)
         :User requests Attendee Name Change;
-        :System updates Ticket Attendee Name;
+        :Ticket Service updates Ticket Attendee Name;
     endif
     if (Refund allowed & within deadline) then (yes)
         :User requests Refund / Cancellation;
@@ -64,9 +68,11 @@ partition "Post-Purchase & Operations" {
         :Update Order/Tickets to REFUNDED;
     endif
     :Staff scans Ticket for Check-in;
-    :System updates Ticket to SCANNED;
-    :System logs Check-in event;
-    if (Duplicate scan detected) then (yes)
+    :Ticket Service validates Ticket;
+    if (Valid & Not Scanned) then (yes)
+        :Ticket Service updates to SCANNED;
+        :Ticket Service logs Check-in event;
+    else (no)
         :Alert Staff / Reject entry;
     endif
     :Organizer accesses Reports & Analytics;

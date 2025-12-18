@@ -193,36 +193,6 @@ package "Order Service" {
         ReservationStatus status
     }
 
-    class CheckInLog {
-        Long id
-        Ticket ticket
-        Long eventId
-        UUID userId
-        LocalDateTime checkInTime
-        String gate
-        String deviceId
-    }
-
-    enum OrderStatus {
-        PENDING
-        PAID
-        CANCELLED
-        REFUNDED
-    }
-
-    enum TicketStatus {
-        ISSUED
-        SCANNED
-        TRANSFERRED
-        REFUNDED
-    }
-
-    enum PaymentInfoStatus {
-        PENDING
-        SUCCESS
-        FAILED
-    }
-
     enum ReservationStatus {
         PENDING
         CONFIRMED
@@ -232,8 +202,71 @@ package "Order Service" {
 
     Order "1" *-- "1..*" OrderItem
     Order "1" -- "0..1" PaymentInfo
-    OrderItem "1" *-- "1..*" Ticket
     Reservation "1" -- "1" Order : becomes
+}
+
+package "Ticket Service" {
+    class Ticket {
+        Long id
+        Long orderId
+        Long eventId
+        String userId
+        Long seatId
+        String ticketCode
+        String attendeeName
+        String attendeeEmail
+        TicketStatus status
+        LocalDateTime createdAt
+        LocalDateTime updatedAt
+    }
+
+    class TicketTransfer {
+        UUID id
+        Ticket ticket
+        String senderId
+        String recipientEmail
+        TransferStatus status
+        LocalDateTime createdAt
+        LocalDateTime updatedAt
+    }
+
+    class CheckInLog {
+        Long id
+        Ticket ticket
+        Long eventId
+        String userId
+        LocalDateTime checkInTime
+        String gate
+        String deviceId
+    }
+
+    enum TicketStatus {
+        ISSUED
+        SCANNED
+        TRANSFERRED
+        REFUNDED
+    }
+
+    enum TransferStatus {
+        PENDING
+        APPROVED
+        REJECTED
+        CANCELLED
+    }
+
+    Ticket "1" -- "0..*" TicketTransfer : history >
+    Ticket "1" -- "0..1" CheckInLog : generates >
+}
+
+package "Notification Service" {
+    class Notification {
+        Long id
+        String recipient
+        String subject
+        String content
+        String type
+        LocalDateTime sentAt
+    }
 }
 
 package "Payment Service" {
@@ -263,6 +296,6 @@ EventService.Event "1" -- "0..*" OrderService.Order : has
 EventService.TicketType "1" -- "0..*" OrderService.OrderItem : defines
 OrderService.Order "1" -- "1" PaymentService.PaymentTransaction : processed via
 OrderService.PaymentInfo "1" .. "0..1" PaymentService.PaymentTransaction : references >
-OrderService.Ticket "1" -- "0..1" OrderService.CheckInLog : generates >
+OrderService.Order "1" -- "0..*" TicketService.Ticket : generates >
 
 @enduml

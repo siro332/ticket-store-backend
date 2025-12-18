@@ -23,18 +23,6 @@ class OrderItem {
     BigDecimal price
 }
 
-class Ticket {
-    Long id
-    OrderItem orderItem
-    Long seatId
-    String ticketCode
-    String attendeeName
-    String attendeeEmail
-    TicketStatus status
-    LocalDateTime createdAt
-    LocalDateTime updatedAt
-}
-
 class PaymentInfo {
     Long id
     Order order
@@ -56,32 +44,14 @@ class Reservation {
     ReservationStatus status
 }
 
-class CheckInLog {
-    Long id
-    Ticket ticket
-    Long eventId
-    UUID userId
-    LocalDateTime checkInTime
-    String gate
-    String deviceId
-}
-
 Order "1" *-- "1..*" OrderItem
 Order "1" -- "0..1" PaymentInfo
-OrderItem "1" *-- "1..*" Ticket
-Ticket "1" -- "0..*" CheckInLog
+Reservation "1" -- "1" Order : becomes
 
 enum OrderStatus {
     PENDING
     PAID
     CANCELLED
-    REFUNDED
-}
-
-enum TicketStatus {
-    ISSUED
-    SCANNED
-    TRANSFERRED
     REFUNDED
 }
 

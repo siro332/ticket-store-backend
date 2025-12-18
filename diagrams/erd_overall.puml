@@ -151,19 +151,6 @@ package "Order DB" {
         price : DECIMAL(10,2)
     }
 
-    entity "tickets" {
-        *id : BIGINT <<PK>>
-        --
-        order_item_id : BIGINT <<FK>>
-        seat_id : BIGINT
-        ticket_code : VARCHAR(255)
-        attendee_name : VARCHAR(255)
-        attendee_email : VARCHAR(255)
-        status : VARCHAR(50)
-        created_at : TIMESTAMP
-        updated_at : TIMESTAMP
-    }
-
     entity "payment_infos" {
         *id : BIGINT <<PK>>
         --
@@ -187,22 +174,63 @@ package "Order DB" {
         status : VARCHAR(50)
     }
 
+    orders ||..o{ order_items
+    orders ||--|| payment_infos
+    reservations ||..o{ orders : converts to
+}
+
+package "Ticket DB" {
+    entity "tickets" {
+        *id : BIGINT <<PK>>
+        --
+        order_id : BIGINT
+        event_id : BIGINT
+        user_id : VARCHAR(255)
+        seat_id : BIGINT
+        ticket_code : VARCHAR(255)
+        attendee_name : VARCHAR(255)
+        attendee_email : VARCHAR(255)
+        status : VARCHAR(50)
+        created_at : TIMESTAMP
+        updated_at : TIMESTAMP
+    }
+
     entity "check_in_logs" {
         *id : BIGINT <<PK>>
         --
         ticket_id : BIGINT <<FK>>
         event_id : BIGINT
-        user_id : BINARY(16)
+        user_id : VARCHAR(255)
         check_in_time : DATETIME
         gate : VARCHAR(100)
         device_id : VARCHAR(100)
     }
 
-    orders ||..o{ order_items
-    order_items ||..o{ tickets
-    orders ||--|| payment_infos
-    reservations ||..o{ orders : converts to
+    entity "ticket_transfers" {
+        *id : BINARY(16) <<PK>>
+        --
+        ticket_id : BIGINT <<FK>>
+        sender_id : VARCHAR(255)
+        recipient_email : VARCHAR(255)
+        status : VARCHAR(50)
+        created_at : TIMESTAMP
+        updated_at : TIMESTAMP
+    }
+
+    entity "marketplace_listings" {
+        *id : BIGINT <<PK>>
+        --
+        ticket_id : BIGINT <<FK>>
+        seller_id : VARCHAR(255)
+        price : DECIMAL(10,2)
+        status : VARCHAR(50)
+        created_at : TIMESTAMP
+        updated_at : TIMESTAMP
+    }
+
     tickets ||..o{ check_in_logs
+    tickets ||..o{ ticket_transfers
+    tickets ||..o{ marketplace_listings
 }
 
 package "Payment DB" {
