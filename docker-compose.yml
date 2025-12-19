@@ -145,6 +145,8 @@ services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.0.1
     platform: linux/amd64
+    ports:
+      - "2181:2181"
     container_name: zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181

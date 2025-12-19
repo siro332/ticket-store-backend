@@ -23,4 +23,4 @@ order:
 
 logging: # Added logging configuration
   level:
-    root: DEBUG
+    root: INFO
