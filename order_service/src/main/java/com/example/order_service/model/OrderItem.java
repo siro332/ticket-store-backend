@@ -23,7 +23,7 @@ public class OrderItem {
     private Order order;
 
     private Long ticketTypeId;
-    // Removed 'quantity' field as it's now derived from the number of associated Tickets
+    private int quantity;
     private BigDecimal price;
 
 }

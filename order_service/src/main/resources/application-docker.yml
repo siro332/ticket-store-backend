@@ -24,6 +24,9 @@ event:
 payment:
   service-url: http://payment-service:8084 # URL for the payment service
 
+auth:
+  service-url: http://auth-service:8081 # URL for the auth service
+
 # Spring Mail settings for Docker environment (can be mocked or use a real SMTP)
   mail:
     host: mock-smtp.example.com # Placeholder for Docker

@@ -24,12 +24,39 @@ public class PaymentService {
 
     @Transactional
     public PaymentTransaction processPayment(PaymentRequest req) {
+        String method = req.getPaymentMethod() != null ? req.getPaymentMethod().toUpperCase() : "VNPAY";
+
+        if ("PAYPAL".equals(method) || "CREDIT CARD".equals(method)) {
+            PaymentTransaction tx = PaymentTransaction.builder()
+                    .orderId(req.getOrderId())
+                    .amount(req.getAmount())
+                    .paymentMethod(req.getPaymentMethod())
+                    .transactionId("TX-" + method + "-" + System.currentTimeMillis())
+                    .status(PaymentTransaction.Status.SUCCESS)
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+
+            PaymentTransaction savedTx = repo.save(tx);
+            
+            try {
+                orderClient.processPayment(tx.getOrderId(), tx.getTransactionId(), PaymentInfoStatus.SUCCESS);
+            } catch (Exception e) {
+                System.err.println("Failed to update order service for " + method + ": " + e.getMessage());
+                // In a real scenario, we might want to rollback or queue a retry. 
+                // For this prototype/mock, logging is sufficient.
+            }
+            
+            return savedTx;
+        }
+
+        // Default to VNPAY or existing logic
         String paymentUrl = vnpayService.createPaymentUrl(req.getOrderId(), req.getAmount().longValue());
 
         PaymentTransaction tx = PaymentTransaction.builder()
                 .orderId(req.getOrderId())
                 .amount(req.getAmount())
-                .paymentMethod(req.getPaymentMethod())
+                .paymentMethod(req.getPaymentMethod()) // Or "VNPAY" if null? existing code used req.getPaymentMethod()
                 .transactionId("TX" + System.currentTimeMillis())
                 .status(PaymentTransaction.Status.PENDING)
                 .createdAt(LocalDateTime.now())

@@ -114,7 +114,15 @@ const CheckoutPage: React.FC = () => {
       const orderResponse = await OrdersService.postApiOrders(orderRequest);
 
       if (orderResponse.id) {
-        const paymentTransaction = await OrdersService.postApiOrdersInitiatePayment(orderResponse.id, paymentMethod);
+        const paymentTransaction: any = await OrdersService.postApiOrdersInitiatePayment(orderResponse.id, paymentMethod);
+        
+        if (paymentTransaction.status === 'SUCCESS') {
+          showNotification('Order placed successfully!', 'success');
+          clearCart();
+          navigate(`/orders/${orderResponse.id}`);
+          return;
+        }
+
         if (paymentTransaction.paymentUrl) {
           window.location.href = paymentTransaction.paymentUrl;
         } else {
@@ -227,6 +235,7 @@ const CheckoutPage: React.FC = () => {
                 >
                   <MenuItem value="Credit Card">Credit Card</MenuItem>
                   <MenuItem value="PayPal">PayPal</MenuItem>
+                  <MenuItem value="VNPAY">VNPAY</MenuItem>
                 </TextField>
               </Box>
 

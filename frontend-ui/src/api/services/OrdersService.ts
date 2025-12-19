@@ -193,7 +193,7 @@ export class OrdersService {
     ): CancelablePromise<Array<TicketResponse>> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/api/orders/{id}/tickets',
+            url: '/api/tickets/order/{id}',
             path: {
                 'id': id,
             },

@@ -2,8 +2,8 @@ spring:
   application:
     name: notification-service
   kafka:
+    bootstrap-servers: kafka:29092
     consumer:
-      bootstrap-servers: kafka:29092
       group-id: notification-group
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer

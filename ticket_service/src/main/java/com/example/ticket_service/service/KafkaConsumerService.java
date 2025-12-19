@@ -30,20 +30,26 @@ public class KafkaConsumerService {
         OrderPaidEvent event = gson.fromJson(message, OrderPaidEvent.class);
 
         OrderDetailsDto orderDetails = orderServiceClient.getOrderById(event.getOrderId());
+        System.out.println("Fetched order details: " + orderDetails);
 
         List<Ticket> ticketsToSave = new ArrayList<>();
-        for (OrderDetailsDto.OrderItemDto item : orderDetails.getItems()) {
-            for (int i = 0; i < item.getQuantity(); i++) {
-                Ticket ticket = Ticket.builder()
-                        .orderId(orderDetails.getId())
-                        .eventId(orderDetails.getEventId())
-                        .userId(orderDetails.getUserId())
-                        .ticketCode(UUID.randomUUID().toString())
-                        .attendeeName(event.getUserEmail()) // Use user email as initial attendee name
-                        .attendeeEmail(event.getUserEmail())
-                        .build();
-                ticketsToSave.add(ticket);
+        if (orderDetails.getItems() != null) {
+            for (OrderDetailsDto.OrderItemDto item : orderDetails.getItems()) {
+                System.out.println("Processing item: " + item);
+                for (int i = 0; i < item.getQuantity(); i++) {
+                    Ticket ticket = Ticket.builder()
+                            .orderId(orderDetails.getId())
+                            .eventId(orderDetails.getEventId())
+                            .userId(orderDetails.getUserId() != null ? orderDetails.getUserId().toString() : null)
+                            .ticketCode(UUID.randomUUID().toString())
+                            .attendeeName(event.getUserEmail()) // Use user email as initial attendee name
+                            .attendeeEmail(event.getUserEmail())
+                            .build();
+                    ticketsToSave.add(ticket);
+                }
             }
+        } else {
+            System.out.println("No items found in order " + event.getOrderId());
         }
         ticketRepository.saveAll(ticketsToSave);
         System.out.println("Generated " + ticketsToSave.size() + " tickets for order " + event.getOrderId());

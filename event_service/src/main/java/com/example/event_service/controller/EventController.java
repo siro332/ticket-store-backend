@@ -69,6 +69,12 @@ public class EventController {
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{id}/status")
+    public ResponseEntity<Event> updateStatus(@PathVariable Long id, @RequestParam Event.Status status) {
+        return ResponseEntity.ok(eventService.updateStatus(id, status));
+    }
+
     // TicketType management endpoints
     @PreAuthorize("hasAnyRole('ORGANIZER','ADMIN')")
     @PostMapping("/{eventId}/ticket-types")

@@ -4,24 +4,21 @@ import { Link as RouterLink } from 'react-router-dom';
 import { EventsService } from '../api/services/EventsService';
 import type { Event } from '../api/models/Event';
 import { useNotification } from '../context/NotificationContext';
-
-type EventStatus = 'PENDING' | 'APPROVED' | 'CANCELLED';
+import { EventStatus } from '../api/models/EventStatus';
 
 const AdminEventApprovalPage: React.FC = () => {
   const { showNotification } = useNotification();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [currentTab, setCurrentTab] = useState<EventStatus>('PENDING');
+  const [currentTab, setCurrentTab] = useState<EventStatus>(EventStatus.PENDING_APPROVAL);
 
   const fetchEventsByStatus = useCallback(async (status: EventStatus) => {
     setLoading(true);
     try {
-      // Assuming the API can filter by status.
-      // The actual parameter name might be different.
-      const response = await EventsService.getApiEventsSearch(undefined, undefined, undefined, undefined, undefined, undefined, undefined, 0, 100, status);
+      const response = await EventsService.getApiEventsSearch(undefined, undefined, undefined, undefined, undefined, undefined, status);
       setEvents(response.content || []);
     } catch (err: any) {
-      showNotification(err.message || `Failed to fetch ${status.toLowerCase()} events.`, 'error');
+      showNotification(err.body?.message || `Failed to fetch ${status.toLowerCase()} events.`, 'error');
     } finally {
       setLoading(false);
     }
@@ -37,13 +34,12 @@ const AdminEventApprovalPage: React.FC = () => {
 
   const handleUpdateStatus = async (eventId: number, newStatus: EventStatus) => {
     try {
-      // This is a hypothetical method. You would need to implement it in your EventsService.
-      // await EventsService.updateEventStatus(eventId, newStatus);
-      showNotification(`Event ${eventId} has been ${newStatus.toLowerCase()}.`, 'success');
+      await EventsService.putApiEventsStatus(eventId, newStatus);
+      showNotification(`Event ${eventId} has been updated to ${newStatus}.`, 'success');
       // Refresh the list
       fetchEventsByStatus(currentTab);
     } catch (err: any) {
-      showNotification(err.message || `Failed to update event status.`, 'error');
+      showNotification(err.body?.message || `Failed to update event status.`, 'error');
     }
   };
 
@@ -55,9 +51,7 @@ const AdminEventApprovalPage: React.FC = () => {
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
         <Tabs value={currentTab} onChange={handleTabChange} aria-label="event status tabs">
-          <Tab label="Pending" value="PENDING" />
-          <Tab label="Approved" value="APPROVED" />
-          <Tab label="Cancelled" value="CANCELLED" />
+          <Tab label="Pending Approval" value={EventStatus.PENDING_APPROVAL} />
         </Tabs>
       </Box>
 
@@ -77,17 +71,17 @@ const AdminEventApprovalPage: React.FC = () => {
                 <Card>
                   <CardContent>
                     <Typography variant="h6">{event.name}</Typography>
-                    <Typography color="text.secondary">By: {event.organizer?.name}</Typography>
+                    <Typography color="text.secondary">Organizer ID: {event.organizerId}</Typography>
                     <Chip label={event.status} color={
-                      event.status === 'PENDING' ? 'warning' :
-                      event.status === 'APPROVED' ? 'success' : 'error'
+                      event.status === EventStatus.PENDING_APPROVAL ? 'warning' :
+                      event.status === EventStatus.PUBLISHED ? 'success' : 'error'
                     } sx={{ mt: 1 }} />
                   </CardContent>
                   <CardActions>
-                    {currentTab === 'PENDING' && (
+                    {currentTab === EventStatus.PENDING_APPROVAL && (
                       <>
-                        <Button size="small" onClick={() => handleUpdateStatus(event.id!, 'APPROVED')}>Approve</Button>
-                        <Button size="small" color="error" onClick={() => handleUpdateStatus(event.id!, 'CANCELLED')}>Reject</Button>
+                        <Button size="small" onClick={() => handleUpdateStatus(event.id!, EventStatus.PUBLISHED)}>Approve</Button>
+                        <Button size="small" color="error" onClick={() => handleUpdateStatus(event.id!, EventStatus.CANCELLED)}>Reject</Button>
                       </>
                     )}
                     <Button size="small" component={RouterLink} to={`/events/${event.id}`}>View Details</Button>

@@ -126,6 +126,23 @@ const EventFormPage: React.FC = () => {
     }
   };
 
+  const handleSubmitForApproval = async () => {
+    if (!eventId) return;
+    setLoading(true);
+    try {
+      await EventsService.postApiEventsIdSubmit(eventId);
+      showNotification('Event submitted for approval successfully!', 'success');
+      // Update local state to reflect new status
+      setEventData(prev => ({ ...prev, status: 'PENDING_APPROVAL' }));
+    } catch (err: any) {
+      const errorMessage = err.body?.message || err.response?.data?.message || err.message || 'Failed to submit event for approval.';
+      showNotification(errorMessage, 'error');
+      console.error("Failed to submit event:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading && !eventData.name && eventId) { // Only show full loading if initializing edit
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
@@ -321,6 +338,17 @@ const EventFormPage: React.FC = () => {
                   <Button variant="contained" type="submit" size="large" fullWidth disabled={loading}>
                     {loading ? <CircularProgress size={24} color="inherit" /> : (eventId ? 'Update Event' : 'Create Event')}
                   </Button>
+                  {eventId && eventData.status === 'DRAFT' && (
+                    <Button 
+                      variant="outlined" 
+                      color="primary" 
+                      fullWidth 
+                      onClick={handleSubmitForApproval} 
+                      disabled={loading}
+                    >
+                      Submit for Approval
+                    </Button>
+                  )}
                   <Button variant="outlined" color="inherit" fullWidth onClick={() => navigate('/organizer/dashboard')}>
                     Cancel
                   </Button>

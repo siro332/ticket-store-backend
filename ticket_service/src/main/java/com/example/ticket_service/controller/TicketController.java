@@ -31,6 +31,13 @@ public class TicketController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/order/{orderId}")
+    public ResponseEntity<List<TicketResponse>> getTicketsByOrderId(@PathVariable Long orderId) {
+        List<Ticket> tickets = ticketService.getTicketsByOrderId(orderId);
+        List<TicketResponse> response = tickets.stream().map(TicketResponse::fromEntity).toList();
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/{ticketCode}/scan")
     public ResponseEntity<TicketResponse> scanTicket(
             @PathVariable String ticketCode,

@@ -4,6 +4,7 @@
 /* eslint-disable */
 import type { Discount } from '../models/Discount';
 import type { Event } from '../models/Event';
+import type { EventStatus } from '../models/EventStatus';
 import type { PageEvent } from '../models/PageEvent';
 import type { Seat } from '../models/Seat';
 import type { TicketType } from '../models/TicketType';
@@ -120,6 +121,7 @@ export class EventsService {
      * @param endTime Filter by events ending before this time
      * @param minPrice Filter by minimum ticket price
      * @param maxPrice Filter by maximum ticket price
+     * @param status Filter by event status
      * @param location Filter by event location (city)
      * @param page Page number (0-indexed)
      * @param size Number of items per page
@@ -133,6 +135,7 @@ export class EventsService {
         endTime?: string,
         minPrice?: number,
         maxPrice?: number,
+        status?: EventStatus,
         location?: string,
         page?: number,
         size: number = 10,
@@ -147,6 +150,7 @@ export class EventsService {
                 'endTime': endTime,
                 'minPrice': minPrice,
                 'maxPrice': maxPrice,
+                'status': status,
                 'location': location,
                 'page': page,
                 'size': size,
@@ -450,6 +454,58 @@ export class EventsService {
                 401: `Unauthorized`,
                 403: `Forbidden - Only ORGANIZERs or ADMINs can update seat lock status`,
                 404: `Seat not found`,
+            },
+        });
+    }
+    
+    /**
+     * Update event status
+     * @param eventId
+     * @param status
+     * @returns Event Event status updated
+     * @throws ApiError
+     */
+    public static putApiEventsStatus(
+        eventId: number,
+        status: EventStatus,
+    ): CancelablePromise<Event> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/api/events/{eventId}/status',
+            path: {
+                'eventId': eventId,
+            },
+            query: {
+                'status': status,
+            },
+            errors: {
+                400: `Invalid status`,
+                401: `Unauthorized`,
+                403: `Forbidden - Only ADMINs can update event status`,
+                404: `Event not found`,
+            },
+        });
+    }
+
+    /**
+     * Submit an event for approval
+     * @param eventId
+     * @returns Event Event submitted
+     * @throws ApiError
+     */
+    public static postApiEventsIdSubmit(
+        eventId: number,
+    ): CancelablePromise<Event> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/events/{id}/submit',
+            path: {
+                'id': eventId,
+            },
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden - Only ORGANIZERs can submit events`,
+                404: `Event not found`,
             },
         });
     }

@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import java.util.Arrays;
 
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
@@ -32,6 +34,13 @@ public class UserController {
     private final UserRepository userRepository;
     private final UserOrganizationRoleRepository userOrganizationRoleRepository;
     private final OrganizationService organizationService;
+
+    @GetMapping("/search")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<User>> searchUsers(@RequestParam("query") String query) {
+        List<User> users = userRepository.findByEmailContainingIgnoreCaseOrFullNameContainingIgnoreCase(query, query);
+        return ResponseEntity.ok(users);
+    }
 
     @GetMapping("/me")
     public ResponseEntity<?> getProfile(Authentication auth) {

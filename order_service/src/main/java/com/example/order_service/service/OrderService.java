@@ -52,40 +52,43 @@ public class OrderService {
         BigDecimal totalAmount = BigDecimal.ZERO;
         Map<Long, OrderItem> orderItemMap = new HashMap<>(); // Map to group items by ticketType
 
-        // Process reservations first
-        for (Reservation res : reservations) {
-            // Confirm the reservation
-            reservationService.confirmReservation(res.getId());
-
-            // Create or update OrderItem for this ticketType
-            OrderItem orderItem = orderItemMap.computeIfAbsent(res.getTicketTypeId(), k ->
-                    OrderItem.builder()
-                            .ticketTypeId(res.getTicketTypeId())
-                            .price(BigDecimal.ZERO) // Price will be updated later
-                            .build()
-            );
-
-            // Assuming price comes from the reservation or an external service
-            // For now, let's assume a placeholder price per ticket type
-            // In a real scenario, you'd fetch the actual TicketType price from event_service
-            BigDecimal ticketPrice = BigDecimal.valueOf(100.00); // Placeholder
-            orderItem.setPrice(ticketPrice); // Set price for the order item
-            totalAmount = totalAmount.add(ticketPrice);
-        }
-
-        // Handle direct order items if no reservations were used (e.g., general admission)
-        if (request.getReservationIds() == null || request.getReservationIds().isEmpty()) {
-            for (OrderRequest.OrderItemRequest itemRequest : request.getItems()) {
-                OrderItem orderItem = orderItemMap.computeIfAbsent(itemRequest.getTicketTypeId(), k ->
-                        OrderItem.builder()
-                                .ticketTypeId(itemRequest.getTicketTypeId())
-                                .price(BigDecimal.valueOf(itemRequest.getPrice()))
-                                .build()
-                );
-                totalAmount = totalAmount.add(BigDecimal.valueOf(itemRequest.getPrice()).multiply(BigDecimal.valueOf(itemRequest.getQuantity())));
-            }
-        }
-
+                    // Process reservations first
+                for (Reservation res : reservations) {
+                    // Confirm the reservation
+                    reservationService.confirmReservation(res.getId());
+        
+                    // Create or update OrderItem for this ticketType
+                    OrderItem orderItem = orderItemMap.computeIfAbsent(res.getTicketTypeId(), k ->
+                            OrderItem.builder()
+                                    .ticketTypeId(res.getTicketTypeId())
+                                    .price(BigDecimal.ZERO) // Price will be updated later
+                                    .quantity(0)
+                                    .build()
+                    );
+                    orderItem.setQuantity(orderItem.getQuantity() + 1);
+        
+                    // Assuming price comes from the reservation or an external service
+                    // For now, let's assume a placeholder price per ticket type
+                    // In a real scenario, you'd fetch the actual TicketType price from event_service
+                    BigDecimal ticketPrice = BigDecimal.valueOf(100.00); // Placeholder
+                    orderItem.setPrice(ticketPrice); // Set price for the order item
+                    totalAmount = totalAmount.add(ticketPrice);
+                }
+        
+                // Handle direct order items if no reservations were used (e.g., general admission)
+                if (request.getReservationIds() == null || request.getReservationIds().isEmpty()) {
+                    for (OrderRequest.OrderItemRequest itemRequest : request.getItems()) {
+                        OrderItem orderItem = orderItemMap.computeIfAbsent(itemRequest.getTicketTypeId(), k ->
+                                OrderItem.builder()
+                                        .ticketTypeId(itemRequest.getTicketTypeId())
+                                        .price(BigDecimal.valueOf(itemRequest.getPrice()))
+                                        .quantity(0)
+                                        .build()
+                        );
+                        orderItem.setQuantity(orderItem.getQuantity() + itemRequest.getQuantity());
+                        totalAmount = totalAmount.add(BigDecimal.valueOf(itemRequest.getPrice()).multiply(BigDecimal.valueOf(itemRequest.getQuantity())));
+                    }
+                }
 
         // 3. Apply discount
         DiscountDto appliedDiscount = null;
@@ -226,15 +229,21 @@ public class OrderService {
 
         if (paymentStatus == PaymentInfo.PaymentStatus.SUCCESS) {
             order.setStatus(Order.OrderStatus.PAID);
-            String userEmail = authServiceClient.getUserEmailById(order.getUserId());
-            OrderPaidEvent event = OrderPaidEvent.builder()
-                    .orderId(order.getId())
-                    .userId(order.getUserId().toString())
-                    .userEmail(userEmail)
-                    .totalAmount(order.getTotalAmount().toString())
-                    .currency(order.getCurrency())
-                    .build();
-            kafkaProducerService.sendOrderPaidEvent(event);
+            
+            try {
+                String userEmail = authServiceClient.getUserEmailById(order.getUserId());
+                OrderPaidEvent event = OrderPaidEvent.builder()
+                        .orderId(order.getId())
+                        .userId(order.getUserId().toString())
+                        .userEmail(userEmail)
+                        .totalAmount(order.getTotalAmount().toString())
+                        .currency(order.getCurrency())
+                        .build();
+                kafkaProducerService.sendOrderPaidEvent(event);
+            } catch (Exception e) {
+                log.error("Failed to send order paid event or fetch user email for order: " + orderId, e);
+                // We do not rethrow here to ensure the order status update is committed
+            }
         } else if (paymentStatus == PaymentInfo.PaymentStatus.FAILED) {
             order.setStatus(Order.OrderStatus.CANCELLED); // Or a specific FAILED status
             orderRepository.save(order);
@@ -280,15 +289,21 @@ public class OrderService {
         // Update order status based on payment transaction status
         if (paymentTransaction.getStatus().equals(PaymentInfo.PaymentStatus.SUCCESS.name())) {
             order.setStatus(Order.OrderStatus.PAID);
-            String userEmail = authServiceClient.getUserEmailById(order.getUserId());
-            OrderPaidEvent event = OrderPaidEvent.builder()
-                    .orderId(order.getId())
-                    .userId(order.getUserId().toString())
-                    .userEmail(userEmail)
-                    .totalAmount(order.getTotalAmount().toString())
-                    .currency(order.getCurrency())
-                    .build();
-            kafkaProducerService.sendOrderPaidEvent(event);
+            
+            try {
+                String userEmail = authServiceClient.getUserEmailById(order.getUserId());
+                OrderPaidEvent event = OrderPaidEvent.builder()
+                        .orderId(order.getId())
+                        .userId(order.getUserId().toString())
+                        .userEmail(userEmail)
+                        .totalAmount(order.getTotalAmount().toString())
+                        .currency(order.getCurrency())
+                        .build();
+                kafkaProducerService.sendOrderPaidEvent(event);
+            } catch (Exception e) {
+                log.error("Failed to send order paid event or fetch user email for order: " + orderId, e);
+                // We do not rethrow here to ensure the order status update is committed
+            }
         } else if (paymentTransaction.getStatus().equals(PaymentInfo.PaymentStatus.FAILED.name())) {
             order.setStatus(Order.OrderStatus.CANCELLED); // Or a specific FAILED status
         }

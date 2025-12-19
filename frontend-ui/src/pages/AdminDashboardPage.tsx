@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Grid, Card, CardContent, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TextField, MenuItem, Typography, Box, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, Alert, List, ListItem, ListItemText, IconButton } from '@mui/material';
+import { Container, Grid, Card, CardContent, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TextField, MenuItem, Typography, Box, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, Alert, List, ListItem, ListItemText, IconButton, Autocomplete } from '@mui/material';
 import { OrganizationService } from '../api/services/OrganizationService';
 import type { Organization } from '../api/models/Organization';
 import type { UserOrganizationRole } from '../api/models/UserOrganizationRole';
+import { UsersService } from '../api/services/UsersService';
+import type { User } from '../api/models/User';
 import { useAuth } from '../context/AuthContext';
 import { Link as RouterLink } from 'react-router-dom';
 import { useNotification } from '../context/NotificationContext';
@@ -22,6 +24,12 @@ const AdminDashboardPage: React.FC = () => {
   const [newUserId, setNewUserId] = useState('');
   const [newRoleId, setNewRoleId] = useState('');
 
+  // State for Create New Organization form
+  const [newOrgName, setNewOrgName] = useState('');
+  const [owner, setOwner] = useState<User | null>(null);
+  const [userSearch, setUserSearch] = useState('');
+  const [userOptions, setUserOptions] = useState<User[]>([]);
+
   const [globalPaymentMethods, setGlobalPaymentMethods] = useState<string[]>(['Credit Card', 'PayPal']);
   const [newPaymentMethod, setNewPaymentMethod] = useState<string>('');
   const [globalServiceFee, setGlobalServiceFee] = useState<number>(0.05);
@@ -36,6 +44,15 @@ const AdminDashboardPage: React.FC = () => {
     }
     fetchOrganizations();
   }, [user, showNotification]);
+
+  useEffect(() => {
+    if (userSearch) {
+      const timer = setTimeout(() => {
+        UsersService.searchUsers(userSearch).then(setUserOptions);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [userSearch]);
 
   const fetchOrganizations = async () => {
     setLoading(true);
@@ -138,6 +155,30 @@ const AdminDashboardPage: React.FC = () => {
     }
   };
 
+  const handleCreateOrganization = async () => {
+    if (!newOrgName || !owner) {
+      showNotification('Please provide a name and select an owner for the new organization.', 'warning');
+      return;
+    }
+    setLoading(true);
+    try {
+      await OrganizationService.postApiOrganizations({
+        name: newOrgName,
+        ownerUserId: owner.id,
+      });
+      showNotification('Organization created successfully!', 'success');
+      setNewOrgName('');
+      setOwner(null);
+      fetchOrganizations(); // Refresh the list
+    } catch (err: any) {
+      const errorMessage = err.body?.message || err.response?.data?.message || err.message || 'Failed to create organization.';
+      showNotification(errorMessage, 'error');
+      console.error("Failed to create organization:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAddPaymentMethod = () => {
     if (newPaymentMethod && !globalPaymentMethods.includes(newPaymentMethod)) {
       setGlobalPaymentMethods([...globalPaymentMethods, newPaymentMethod]);
@@ -173,6 +214,9 @@ const AdminDashboardPage: React.FC = () => {
         <CardContent>
           <Typography variant="h6" gutterBottom>Quick Actions</Typography>
           <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button component={RouterLink} to="/admin/events" variant="contained">
+              Manage Event Approvals
+            </Button>
             <Button component={RouterLink} to="/admin/support" variant="contained" color="info">
               Support Center
             </Button>
@@ -180,6 +224,30 @@ const AdminDashboardPage: React.FC = () => {
               Content Management
             </Button>
           </Box>
+        </CardContent>
+      </Card>
+      
+      <Card sx={{ mb: 4 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>Create New Organization</Typography>
+          <TextField
+            label="Organization Name"
+            fullWidth
+            value={newOrgName}
+            onChange={(e) => setNewOrgName(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <Autocomplete
+              options={userOptions}
+              getOptionLabel={(option) => `${option.fullName} (${option.email})`}
+              onInputChange={(e, newValue) => setUserSearch(newValue)}
+              onChange={(e, newValue) => setOwner(newValue)}
+              value={owner}
+              renderInput={(params) => <TextField {...params} label="Owner" fullWidth />}
+          />
+          <Button variant="contained" onClick={handleCreateOrganization} disabled={loading} sx={{mt: 2}}>
+            Create Organization
+          </Button>
         </CardContent>
       </Card>
 

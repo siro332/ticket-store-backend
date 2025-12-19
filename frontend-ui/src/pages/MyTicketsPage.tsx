@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Typography, CircularProgress, Grid, Card, CardContent, Box, Alert } from '@mui/material';
-import * as QRCode from 'qrcode.react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { TicketsService } from '../api/services/TicketsService';
@@ -65,7 +65,7 @@ const MyTicketsPage: React.FC = () => {
                     Ticket #{ticket.id}
                   </Typography>
                   <Box sx={{ my: 2 }}>
-                    <QRCode.default value={ticket.ticketCode} size={128} />
+                    <QRCodeCanvas value={ticket.ticketCode || 'N/A'} size={128} />
                   </Box>
                   <Typography variant="body2" color="text.secondary">
                     Event ID: {ticket.eventId}

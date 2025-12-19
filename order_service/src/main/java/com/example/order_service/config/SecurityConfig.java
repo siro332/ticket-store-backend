@@ -27,6 +27,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/orders/{id}/payment-callback").permitAll() // Allow payment service callback
                         .requestMatchers(HttpMethod.GET, "/api/reservations/event/*/active").permitAll() // Allow EventService to check availability
+                        .requestMatchers("/api/internal/**").permitAll() // Allow internal service calls
                         .requestMatchers("/api/orders/**", "/api/reservations/**").authenticated()
                         .anyRequest().permitAll()
                 )

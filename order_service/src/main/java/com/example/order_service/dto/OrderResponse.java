@@ -59,7 +59,7 @@ public class OrderResponse {
             return OrderItemResponse.builder()
                     .id(item.getId())
                     .ticketTypeId(item.getTicketTypeId())
-                    .quantity(0) // This needs to be calculated properly
+                    .quantity(item.getQuantity())
                     .price(item.getPrice())
                     .build();
         }

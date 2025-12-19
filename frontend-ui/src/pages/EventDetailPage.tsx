@@ -76,10 +76,21 @@ const EventDetailPage: React.FC = () => {
       return;
     }
 
-    // Only enforce seat selection if there are actual seats available for the event
-    if (seats.length > 0 && !selectedSeat) { // Use selectedSeat state instead of passed seatId for check
-      showNotification('Please select a seat.', 'warning');
-      return;
+    // Determine the seat ID to use: either passed directly or from state
+    const targetSeatId = seatId || (typeof selectedSeat === 'number' ? selectedSeat : undefined);
+
+    // If seating is required for the event
+    if (hasSeatingOptions) {
+      if (!targetSeatId) {
+        showNotification('Please select a seat first.', 'warning');
+        return;
+      }
+
+      const seatObj = seats.find(s => s.id === targetSeatId);
+      if (seatObj?.ticketType?.id !== ticketType.id) {
+        showNotification(`The selected seat is for "${seatObj?.ticketType?.name || 'another'}" ticket type, not "${ticketType.name}".`, 'warning');
+        return;
+      }
     }
 
     addToCart(
@@ -89,12 +100,15 @@ const EventDetailPage: React.FC = () => {
         price: ticketType.price,
         eventId: event.id!,
         eventName: event.name!,
-        seatId: seats.length > 0 ? (selectedSeat as number) : undefined, // Only assign seatId if seats exist
+        seatId: targetSeatId,
       },
       quantity
     );
+    
     showNotification(`${quantity} x ${ticketType.name} added to cart!`, 'success');
-    navigate('/cart');
+    
+    // Clear seat selection so user can pick next seat
+    setSelectedSeat('');
   };
 
   if (loading) {
@@ -221,7 +235,7 @@ const EventDetailPage: React.FC = () => {
                         <Grid item xs={2} key={seat.id}>
                           <Button
                             variant={selectedSeat === seat.id ? 'contained' : 'outlined'}
-                            fullWidth
+                            size="small"
                             onClick={() => setSelectedSeat(seat.id!)}
                             disabled={!seat.isAvailable}
                           >
@@ -230,25 +244,6 @@ const EventDetailPage: React.FC = () => {
                         </Grid>
                       ))}
                     </Grid>
-                    <Button
-                      variant="contained"
-                      fullWidth
-                      disabled={!selectedSeat}
-                      onClick={() => {
-                        if (typeof selectedSeat === 'number') {
-                          const seatObj = seats.find(s => s.id === selectedSeat);
-                          const ticketTypeForSeat = ticketTypes.find(tt => tt.id === seatObj?.ticketType?.id);
-                          if (ticketTypeForSeat) {
-                            handleAddToCart(ticketTypeForSeat, selectedSeat);
-                          } else {
-                            showNotification('Could not determine ticket type for selected seat.', 'error');
-                          }
-                        }
-                      }}
-                      sx={{ mt: 2 }}
-                    >
-                      Add Selected Seat
-                    </Button>
                   </Box>
                 ) : (
                   <Typography variant="body2" color="text.secondary">No available seats for this event.</Typography>

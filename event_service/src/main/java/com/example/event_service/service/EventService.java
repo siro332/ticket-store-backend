@@ -103,6 +103,13 @@ public class EventService {
         event.setStatus(Event.Status.PUBLISHED);
         return eventRepository.save(event);
     }
+    
+    @Transactional
+    public Event updateStatus(Long id, Event.Status status) {
+        Event event = getById(id);
+        event.setStatus(status);
+        return eventRepository.save(event);
+    }
 
     public void deleteEvent(Long id) {
         eventRepository.deleteById(id);
