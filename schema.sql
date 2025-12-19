@@ -6,7 +6,6 @@ create table ticket_store_db.orders
     currency       varchar(255)                                      null,
     discount_code  varchar(255)                                      null,
     event_id       bigint                                            null,
-    is_resale      bit                                               not null,
     payment_method varchar(255)                                      null,
     status         enum ('PENDING', 'PAID', 'CANCELLED', 'REFUNDED') null,
     total_amount   decimal(38, 2)                                    null,
@@ -19,8 +18,6 @@ create table ticket_store_db.order_items
     id             bigint auto_increment
         primary key,
     price          decimal(38, 2) null,
-    quantity       int            not null,
-    ticket_code    varchar(255)   null,
     ticket_type_id bigint         null,
     order_id       bigint         null,
     constraint FKbioxgbv59vetrxe0ejfubep1w
@@ -101,6 +98,54 @@ create table ticket_store_db.role_permissions
         foreign key (role_id) references ticket_store_db.roles (id)
 );
 
+create table ticket_store_db.tickets
+(
+    id             bigint auto_increment
+        primary key,
+    attendee_email varchar(255)                                          null,
+    attendee_name  varchar(255)                                          null,
+    created_at     datetime(6)                                           null,
+    event_id       bigint                                                null,
+    order_id       bigint                                                null,
+    seat_id        bigint                                                null,
+    status         enum ('ISSUED', 'SCANNED', 'REFUNDED', 'TRANSFERRED') null,
+    ticket_code    varchar(255)                                          null,
+    updated_at     datetime(6)                                           null,
+    user_id        varchar(255)                                          null
+);
+
+create table ticket_store_db.marketplace_listings
+(
+    id         binary(16)                           not null
+        primary key,
+    created_at datetime(6)                          null,
+    price      decimal(38, 2)                       null,
+    seller_id  varchar(255)                         null,
+    status     enum ('ACTIVE', 'SOLD', 'CANCELLED') null,
+    updated_at datetime(6)                          null,
+    ticket_id  bigint                               null,
+    constraint UK_9q5gnq6khmirfxi9cfc9tie47
+        unique (ticket_id),
+    constraint FKq2gjh9clj7koa588hfauqno17
+        foreign key (ticket_id) references ticket_store_db.tickets (id)
+);
+
+create table ticket_store_db.ticket_transfers
+(
+    id              binary(16)                               not null
+        primary key,
+    created_at      datetime(6)                              null,
+    recipient_email varchar(255)                             null,
+    sender_id       varchar(255)                             null,
+    status          enum ('PENDING', 'APPROVED', 'REJECTED') null,
+    updated_at      datetime(6)                              null,
+    ticket_id       bigint                                   null,
+    constraint UK_jfstiespc6i68p7jo1pnflclk
+        unique (ticket_id),
+    constraint FKmxr9rhg9q3t6kum3p8nblsgey
+        foreign key (ticket_id) references ticket_store_db.tickets (id)
+);
+
 create table ticket_store_db.users
 (
     id            binary(16)                              not null
@@ -118,21 +163,19 @@ create table ticket_store_db.users
 
 create table ticket_store_db.organizations
 (
-    id                        bigint auto_increment
+    id                        binary(16)                   not null
         primary key,
-    contact_email             varchar(255)                            null,
-    created_at                datetime(6)                             null,
-    description               varchar(255)                            null,
-    name                      varchar(255)                            not null,
-    owner_user_id             binary(16)                              not null,
-    status                    enum ('ACTIVE', 'PENDING', 'SUSPENDED') null,
-    updated_at                datetime(6)                             null,
-    cancellation_policy       text                                    null,
-    fees_and_taxes            varchar(255)                            null,
-    refund_policy             text                                    null,
-    supported_payment_methods varchar(255)                            null,
-    constraint UKp9pbw3flq9hkay8hdx3ypsldy
-        unique (name),
+    cancellation_policy       text                         null,
+    contact_email             varchar(255)                 null,
+    created_at                datetime(6)                  null,
+    description               text                         null,
+    fees_and_taxes            varchar(255)                 null,
+    name                      varchar(255)                 not null,
+    refund_policy             text                         null,
+    status                    enum ('ACTIVE', 'SUSPENDED') null,
+    supported_payment_methods varchar(255)                 null,
+    updated_at                datetime(6)                  null,
+    owner_user_id             binary(16)                   null,
     constraint FK37dv86ymr1mh8lhcosssu5rc6
         foreign key (owner_user_id) references ticket_store_db.users (id)
 );
@@ -141,13 +184,9 @@ create table ticket_store_db.user_organization_roles
 (
     id              bigint auto_increment
         primary key,
-    created_at      datetime(6) null,
-    updated_at      datetime(6) null,
-    organization_id bigint      not null,
-    role_id         bigint      not null,
-    user_id         binary(16)  not null,
-    constraint UKpu1ubqmdylk9u1q1oxs2nn421
-        unique (user_id, organization_id),
+    organization_id binary(16) not null,
+    role_id         bigint     not null,
+    user_id         binary(16) not null,
     constraint FK1wsh1dm281tb63txeoxme18f6
         foreign key (organization_id) references ticket_store_db.organizations (id),
     constraint FK96wjp3pil3r8a4tq6h2vwlfe3
@@ -171,25 +210,22 @@ create table ticket_store_db.events
 (
     id                         bigint auto_increment
         primary key,
-    allow_attendee_name_change bit                                      null,
-    allow_ticket_transfer      bit                                      null,
-    buyer_count                int                                      null,
-    category                   varchar(255)                             null,
-    cover_image                varchar(255)                             null,
-    created_at                 datetime(6)                              null,
-    description                text                                     null,
-    end_time                   datetime(6)                              null,
-    format                     varchar(255)                             null,
-    name                       varchar(255)                             null,
-    organizer_id               binary(16)                               null,
-    refund_deadline_hours      int                                      null,
-    refund_enabled             bit                                      null,
-    refund_fee_percent         double                                   null,
-    seat_configuration         text                                     null,
-    start_time                 datetime(6)                              null,
-    status                     enum ('DRAFT', 'PUBLISHED', 'CANCELLED') null,
-    updated_at                 datetime(6)                              null,
-    venue_id                   bigint                                   null,
+    allow_attendee_name_change bit                                                          null,
+    allow_ticket_transfer      bit                                                          null,
+    category                   varchar(255)                                                 null,
+    cover_image                varchar(255)                                                 null,
+    created_at                 datetime(6)                                                  null,
+    description                text                                                         null,
+    end_time                   datetime(6)                                                  null,
+    name                       varchar(255)                                                 null,
+    organizer_id               binary(16)                                                   null,
+    refund_deadline_hours      int                                                          null,
+    refund_enabled             bit                                                          null,
+    refund_fee_percent         double                                                       null,
+    start_time                 datetime(6)                                                  null,
+    status                     enum ('DRAFT', 'PENDING_APPROVAL', 'PUBLISHED', 'CANCELLED') null,
+    updated_at                 datetime(6)                                                  null,
+    venue_id                   bigint                                                       null,
     constraint FKqdxygdernwwt74hdvix9u5nr3
         foreign key (venue_id) references ticket_store_db.venues (id)
 );

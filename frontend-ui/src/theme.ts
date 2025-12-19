@@ -195,6 +195,13 @@ const theme = createTheme({
         },
       },
     },
+    MuiSelect: {
+      styleOverrides: {
+        select: {
+          minWidth: '70px',
+        },
+      },
+    },
   },
 });
 
