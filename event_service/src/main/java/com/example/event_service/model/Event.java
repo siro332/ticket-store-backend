@@ -75,6 +75,6 @@ public class Event {
     }
 
     public enum Status {
-        DRAFT, PUBLISHED, CANCELLED
+        DRAFT, PENDING_APPROVAL, PUBLISHED, CANCELLED
     }
 }

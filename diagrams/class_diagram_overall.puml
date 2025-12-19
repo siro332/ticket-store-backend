@@ -129,6 +129,7 @@ package "Event Service" {
 
     enum EventStatus {
         DRAFT
+        PENDING_APPROVAL
         PUBLISHED
         CANCELLED
     }

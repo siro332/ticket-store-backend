@@ -66,7 +66,7 @@ public class EventService {
         existing.setStartTime(updated.getStartTime());
         existing.setEndTime(updated.getEndTime());
         existing.setCoverImage(updated.getCoverImage());
-        existing.setStatus(updated.getStatus());
+        // Status update is handled via specific workflows (submit/approve/cancel)
         existing.setAllowTicketTransfer(updated.getAllowTicketTransfer()); // Update new field
         existing.setAllowAttendeeNameChange(updated.getAllowAttendeeNameChange()); // Update new field
         existing.setRefundEnabled(updated.getRefundEnabled());
@@ -75,6 +75,33 @@ public class EventService {
         Event savedEvent = eventRepository.save(existing);
         log.debug("Event ID {} updated to: {}", id, savedEvent);
         return savedEvent;
+    }
+
+    @Transactional
+    public Event cancelEvent(Long id) {
+        Event event = getById(id);
+        event.setStatus(Event.Status.CANCELLED);
+        return eventRepository.save(event);
+    }
+
+    @Transactional
+    public Event submitForApproval(Long id) {
+        Event event = getById(id);
+        if (event.getStatus() != Event.Status.DRAFT) {
+            throw new RuntimeException("Only DRAFT events can be submitted for approval.");
+        }
+        event.setStatus(Event.Status.PENDING_APPROVAL);
+        return eventRepository.save(event);
+    }
+
+    @Transactional
+    public Event approveEvent(Long id) {
+        Event event = getById(id);
+        if (event.getStatus() != Event.Status.PENDING_APPROVAL) {
+            throw new RuntimeException("Only PENDING_APPROVAL events can be approved.");
+        }
+        event.setStatus(Event.Status.PUBLISHED);
+        return eventRepository.save(event);
     }
 
     public void deleteEvent(Long id) {

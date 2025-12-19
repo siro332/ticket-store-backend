@@ -89,4 +89,47 @@ Gateway --> Organizer : HTTP 200 OK / Discount Details
 deactivate Gateway
 deactivate Organizer
 
+' --- Submit for Approval ---
+Organizer -> Gateway : POST /api/events/{eventId}/submit
+activate Organizer
+activate Gateway
+Gateway -> Auth : Validate Token & Role (ORGANIZER)
+activate Auth
+Auth --> Gateway : Valid Token & Role
+deactivate Auth
+Gateway -> Event : submitForApproval(eventId)
+activate Event
+Event -> Event : Validate Status (DRAFT)
+Event -> EventDB : Update Status to PENDING_APPROVAL
+activate EventDB
+EventDB --> Event : Updated
+deactivate EventDB
+Event --> Gateway : Event Submitted
+deactivate Event
+Gateway --> Organizer : HTTP 200 OK (PENDING_APPROVAL)
+deactivate Gateway
+deactivate Organizer
+
+' --- Admin Approval ---
+actor Admin
+Admin -> Gateway : POST /api/events/{eventId}/approve
+activate Admin
+activate Gateway
+Gateway -> Auth : Validate Token & Role (ADMIN)
+activate Auth
+Auth --> Gateway : Valid Token & Role
+deactivate Auth
+Gateway -> Event : approveEvent(eventId)
+activate Event
+Event -> Event : Validate Status (PENDING_APPROVAL)
+Event -> EventDB : Update Status to PUBLISHED
+activate EventDB
+EventDB --> Event : Updated
+deactivate EventDB
+Event --> Gateway : Event Published
+deactivate Event
+Gateway --> Admin : HTTP 200 OK (PUBLISHED)
+deactivate Gateway
+deactivate Admin
+
 @enduml

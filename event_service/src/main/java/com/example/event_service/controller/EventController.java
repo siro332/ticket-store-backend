@@ -44,6 +44,24 @@ public class EventController {
         return ResponseEntity.ok(eventService.updateEvent(id, event));
     }
 
+    @PreAuthorize("hasRole('ORGANIZER')")
+    @PostMapping("/{id}/submit")
+    public ResponseEntity<Event> submitForApproval(@PathVariable Long id) {
+        return ResponseEntity.ok(eventService.submitForApproval(id));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<Event> approveEvent(@PathVariable Long id) {
+        return ResponseEntity.ok(eventService.approveEvent(id));
+    }
+
+    @PreAuthorize("hasAnyRole('ORGANIZER','ADMIN')")
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<Event> cancelEvent(@PathVariable Long id) {
+        return ResponseEntity.ok(eventService.cancelEvent(id));
+    }
+
     @PreAuthorize("hasAnyRole('ORGANIZER','ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
