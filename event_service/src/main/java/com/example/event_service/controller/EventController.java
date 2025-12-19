@@ -23,7 +23,10 @@ public class EventController {
     private final EventService eventService;
 
     @GetMapping
-    public ResponseEntity<List<Event>> getAll() {
+    public ResponseEntity<List<Event>> getAll(@RequestParam(value = "status", required = false) Event.Status status) {
+        if (status != null) {
+            return ResponseEntity.ok(eventService.getEventsByStatus(status));
+        }
         return ResponseEntity.ok(eventService.getAllEvents());
     }
 
@@ -90,6 +93,13 @@ public class EventController {
     @GetMapping("/ticket-types/{ticketTypeId}")
     public ResponseEntity<TicketType> getTicketType(@PathVariable Long ticketTypeId) {
         return ResponseEntity.ok(eventService.getTicketTypeById(ticketTypeId));
+    }
+
+    @PostMapping("/ticket-types/{ticketTypeId}/decrement-quota")
+    public ResponseEntity<TicketType> decrementTicketTypeQuota(
+            @PathVariable Long ticketTypeId,
+            @RequestParam(name = "quantity", defaultValue = "1") Integer quantity) {
+        return ResponseEntity.ok(eventService.decrementTicketQuota(ticketTypeId, quantity));
     }
 
     @PreAuthorize("hasAnyRole('ORGANIZER','ADMIN')")
@@ -168,9 +178,10 @@ public class EventController {
             @RequestParam(required = false) LocalDateTime endTime,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) Event.Status status,
             @RequestParam(required = false) String location,
             Pageable pageable) {
-        Page<Event> events = eventService.searchEvents(keyword, category, startTime, endTime, minPrice, maxPrice, location, pageable);
+        Page<Event> events = eventService.searchEvents(keyword, category, startTime, endTime, minPrice, maxPrice, location, status, pageable);
         return ResponseEntity.ok(events);
     }
 }

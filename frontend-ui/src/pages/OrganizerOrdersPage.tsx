@@ -5,6 +5,7 @@ import { OrdersService } from '../api/services/OrdersService';
 import { EventsService } from '../api/services/EventsService';
 import type { OrderResponse } from '../api/models/OrderResponse';
 import type { Event } from '../api/models/Event';
+import { EventStatus } from '../api/models/EventStatus';
 import { OrderStatus } from '../api/models/OrderStatus';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
@@ -37,7 +38,7 @@ const OrganizerOrdersPage: React.FC = () => {
   const fetchOrganizerData = async () => {
     setLoading(true);
     try {
-      const response = await EventsService.getApiEventsSearch();
+      const response = await EventsService.getApiEventsSearch(undefined, undefined, undefined, undefined, undefined, undefined, EventStatus.PUBLISHED);
       const allEvents = response.content || [];
       const organizerManagedEvents = allEvents.filter(event => event.organizerId === user?.id);
       setEvents(organizerManagedEvents);

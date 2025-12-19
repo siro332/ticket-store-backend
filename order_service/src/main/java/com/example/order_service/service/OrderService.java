@@ -151,6 +151,17 @@ public class OrderService {
         // 6. Link Tickets to their respective OrderItems and save
         order.setItems(orderItems); // Ensure order has items before saving tickets
 
+        // 6b. Decrement ticket quotas immediately for purchased ticket types
+        for (OrderItem item : orderItems) {
+            if (item.getTicketTypeId() != null && item.getQuantity() > 0) {
+                try {
+                    eventServiceClient.decrementTicketQuota(item.getTicketTypeId(), item.getQuantity());
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to decrement ticket quota for ticket type " + item.getTicketTypeId() + ": " + e.getMessage(), e);
+                }
+            }
+        }
+
         // 7. Create PaymentInfo
         PaymentInfo paymentInfo = PaymentInfo.builder()
                 .order(order)
@@ -254,62 +265,74 @@ public class OrderService {
 
     @Transactional
     public PaymentTransactionDto initiatePayment(Long orderId, String paymentMethod) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+        try {
+            Order order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
 
-        if (order.getStatus() != Order.OrderStatus.PENDING) {
-            throw new RuntimeException("Payment can only be initiated for PENDING orders.");
-        }
-
-        PaymentRequestDto paymentRequest = PaymentRequestDto.builder()
-                .orderId(order.getId())
-                .amount(order.getTotalAmount())
-                .currency(order.getCurrency())
-                .paymentMethod(paymentMethod)
-                .build();
-
-        // Call payment service to process the payment
-        PaymentTransactionDto paymentTransaction = paymentServiceClient.processPayment(paymentRequest);
-
-        // Update local PaymentInfo based on the payment service response
-        PaymentInfo paymentInfo = order.getPaymentInfo();
-        if (paymentInfo == null) {
-            // This should ideally not happen if createOrder always creates PaymentInfo
-            paymentInfo = PaymentInfo.builder()
-                    .order(order)
-                    .method(paymentMethod)
-                    .amount(order.getTotalAmount())
-                    .build();
-        }
-        paymentInfo.setTransactionId(paymentTransaction.getTransactionId());
-        paymentInfo.setStatus(PaymentInfo.PaymentStatus.valueOf(paymentTransaction.getStatus())); // Convert String to Enum
-        paymentInfo.setPaidAt(paymentTransaction.getCreatedAt()); // Assuming createdAt is when payment was processed
-        paymentInfoRepository.save(paymentInfo);
-
-        // Update order status based on payment transaction status
-        if (paymentTransaction.getStatus().equals(PaymentInfo.PaymentStatus.SUCCESS.name())) {
-            order.setStatus(Order.OrderStatus.PAID);
-            
-            try {
-                String userEmail = authServiceClient.getUserEmailById(order.getUserId());
-                OrderPaidEvent event = OrderPaidEvent.builder()
-                        .orderId(order.getId())
-                        .userId(order.getUserId().toString())
-                        .userEmail(userEmail)
-                        .totalAmount(order.getTotalAmount().toString())
-                        .currency(order.getCurrency())
-                        .build();
-                kafkaProducerService.sendOrderPaidEvent(event);
-            } catch (Exception e) {
-                log.error("Failed to send order paid event or fetch user email for order: " + orderId, e);
-                // We do not rethrow here to ensure the order status update is committed
+            if (order.getStatus() != Order.OrderStatus.PENDING) {
+                throw new RuntimeException("Payment can only be initiated for PENDING orders.");
             }
-        } else if (paymentTransaction.getStatus().equals(PaymentInfo.PaymentStatus.FAILED.name())) {
-            order.setStatus(Order.OrderStatus.CANCELLED); // Or a specific FAILED status
-        }
-        orderRepository.save(order);
 
-        return paymentTransaction;
+            PaymentRequestDto paymentRequest = PaymentRequestDto.builder()
+                    .orderId(order.getId())
+                    .amount(order.getTotalAmount())
+                    .currency(order.getCurrency())
+                    .paymentMethod(paymentMethod)
+                    .build();
+
+            // Call payment service to process the payment
+            PaymentTransactionDto paymentTransaction = paymentServiceClient.processPayment(paymentRequest);
+
+            // Update local PaymentInfo based on the payment service response
+            PaymentInfo paymentInfo = order.getPaymentInfo();
+            if (paymentInfo == null) {
+                // This should ideally not happen if createOrder always creates PaymentInfo
+                paymentInfo = PaymentInfo.builder()
+                        .order(order)
+                        .method(paymentMethod)
+                        .amount(order.getTotalAmount())
+                        .build();
+            }
+            paymentInfo.setTransactionId(paymentTransaction.getTransactionId());
+            PaymentInfo.PaymentStatus newStatus = PaymentInfo.PaymentStatus.PENDING;
+            if (paymentTransaction.getStatus() != null) {
+                try {
+                    newStatus = PaymentInfo.PaymentStatus.valueOf(paymentTransaction.getStatus());
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+            paymentInfo.setStatus(newStatus); // Convert String to Enum
+            paymentInfo.setPaidAt(paymentTransaction.getCreatedAt()); // Assuming createdAt is when payment was processed
+            paymentInfoRepository.save(paymentInfo);
+
+            // Update order status based on payment transaction status
+            if (paymentTransaction.getStatus().equals(PaymentInfo.PaymentStatus.SUCCESS.name())) {
+                order.setStatus(Order.OrderStatus.PAID);
+
+                try {
+                    String userEmail = authServiceClient.getUserEmailById(order.getUserId());
+                    OrderPaidEvent event = OrderPaidEvent.builder()
+                            .orderId(order.getId())
+                            .userId(order.getUserId().toString())
+                            .userEmail(userEmail)
+                            .totalAmount(order.getTotalAmount().toString())
+                            .currency(order.getCurrency())
+                            .build();
+                    kafkaProducerService.sendOrderPaidEvent(event);
+                } catch (Exception e) {
+                    log.error("Failed to send order paid event or fetch user email for order: " + orderId, e);
+                    // We do not rethrow here to ensure the order status update is committed
+                }
+            } else if (paymentTransaction.getStatus().equals(PaymentInfo.PaymentStatus.FAILED.name())) {
+                order.setStatus(Order.OrderStatus.CANCELLED); // Or a specific FAILED status
+            }
+            orderRepository.save(order);
+
+            return paymentTransaction;
+        } catch (Exception e){
+            log.error("Error", e);
+            throw new RuntimeException();
+        }
     }
 
 

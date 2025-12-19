@@ -30,6 +30,21 @@ export class PaymentsService {
         });
     }
     /**
+     * Handle VNPay return callback
+     * @param params key/value params from VNPay return URL
+     * @returns string Status message
+     * @throws ApiError
+     */
+    public static getApiPaymentsVnpayReturn(
+        params: Record<string, string>,
+    ): CancelablePromise<string> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/payments/vnpay_return',
+            query: params,
+        });
+    }
+    /**
      * Process a refund
      * @param requestBody
      * @returns PaymentTransaction Refund transaction processed

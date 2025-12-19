@@ -15,7 +15,7 @@ import java.util.List;
 
 public class EventSpecification {
 
-    public static Specification<Event> withFilters(String keyword, String category, LocalDateTime startTime, LocalDateTime endTime, BigDecimal minPrice, BigDecimal maxPrice, String location) {
+    public static Specification<Event> withFilters(String keyword, String category, LocalDateTime startTime, LocalDateTime endTime, BigDecimal minPrice, BigDecimal maxPrice, String location, Event.Status status) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -44,11 +44,15 @@ public class EventSpecification {
                 predicates.add(cb.equal(cb.lower(venueJoin.get("city")), location.toLowerCase()));
             }
 
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+
             // Price filtering requires joining with TicketType
             if (minPrice != null || maxPrice != null) {
                 Join<Event, TicketType> ticketTypeJoin = root.join("ticketTypes", JoinType.LEFT); // Assuming "ticketTypes" is the field name in Event
                 // We need to ensure we only select DISTINCT events later or use distinct in query
-                query.distinct(true); 
+                query.distinct(true);
 
                 if (minPrice != null) {
                     predicates.add(cb.greaterThanOrEqualTo(ticketTypeJoin.get("price"), minPrice));

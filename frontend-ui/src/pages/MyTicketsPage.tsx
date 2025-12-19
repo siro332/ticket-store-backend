@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Container, Typography, CircularProgress, Grid, Card, CardContent, Box, Alert } from '@mui/material';
-import { QRCodeCanvas } from 'qrcode.react';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import { TicketsService } from '../api/services/TicketsService';
 import type { TicketResponse } from '../api/models/TicketResponse';
 import { motion } from 'framer-motion';
+import QRCode from 'qrcode';
 
 const MyTicketsPage: React.FC = () => {
   const { user } = useAuth();
   const { showNotification } = useNotification();
   const [tickets, setTickets] = useState<TicketResponse[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [qrCodes, setQrCodes] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const fetchMyTickets = async () => {
@@ -35,6 +36,26 @@ const MyTicketsPage: React.FC = () => {
 
     fetchMyTickets();
   }, [user, showNotification]);
+
+  useEffect(() => {
+    const buildQrCodes = async () => {
+      const entries: Record<string, string> = {};
+      for (const ticket of tickets) {
+        const code = ticket.ticketCode || 'N/A';
+        try {
+          entries[code] = await QRCode.toDataURL(code, { width: 160 });
+        } catch (e) {
+          console.error('Failed to generate QR', e);
+        }
+      }
+      setQrCodes(entries);
+    };
+    if (tickets.length > 0) {
+      buildQrCodes();
+    } else {
+      setQrCodes({});
+    }
+  }, [tickets]);
 
   if (loading) {
     return (
@@ -65,7 +86,16 @@ const MyTicketsPage: React.FC = () => {
                     Ticket #{ticket.id}
                   </Typography>
                   <Box sx={{ my: 2 }}>
-                    <QRCodeCanvas value={ticket.ticketCode || 'N/A'} size={128} />
+                    {qrCodes[ticket.ticketCode || 'N/A'] ? (
+                      <Box
+                        component="img"
+                        src={qrCodes[ticket.ticketCode || 'N/A']}
+                        alt="Ticket QR"
+                        sx={{ width: 140, height: 140 }}
+                      />
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">QR unavailable</Typography>
+                    )}
                   </Box>
                   <Typography variant="body2" color="text.secondary">
                     Event ID: {ticket.eventId}

@@ -103,6 +103,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </Button>
                   <Button 
                     component={RouterLink} 
+                    to="/pass-tickets"
+                    color={isActive('/pass-tickets') ? 'primary' : 'inherit'}
+                    sx={{ fontWeight: isActive('/pass-tickets') ? 600 : 500 }}
+                  >
+                    Tickets being passed
+                  </Button>
+                  <Button 
+                    component={RouterLink} 
                     to="/my-orders"
                     color={isActive('/my-orders') ? 'primary' : 'inherit'}
                     sx={{ fontWeight: isActive('/my-orders') ? 600 : 500 }}

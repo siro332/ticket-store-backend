@@ -35,6 +35,7 @@ public class Organization {
 
     @ManyToOne
     @JoinColumn(name = "owner_user_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private User owner;
 
     @Enumerated(EnumType.STRING)

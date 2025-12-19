@@ -13,7 +13,7 @@ public interface AuthServiceClient {
     boolean userExists(@RequestParam("email") String email);
 
     @GetMapping("/api/users/{userId}/assigned-events")
-    List<Long> getAssignedEvents(@PathVariable("userId") String userId);
+    List<Long> getAssignedEvents(@PathVariable String userId);
 
     @GetMapping("/api/users/id-by-email")
     String getUserIdByEmail(@RequestParam("email") String email);

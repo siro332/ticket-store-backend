@@ -7,6 +7,7 @@ import com.example.order_service.model.Order;
 import com.example.order_service.model.PaymentInfo;
 import com.example.order_service.service.OrderService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
@@ -77,7 +79,9 @@ public class OrderController {
     public ResponseEntity<PaymentTransactionDto> initiatePayment(
             @PathVariable Long orderId,
             @RequestParam String paymentMethod) {
-        return ResponseEntity.ok(orderService.initiatePayment(orderId, paymentMethod));
+        PaymentTransactionDto dto = orderService.initiatePayment(orderId, paymentMethod);
+        log.info(dto.toString());
+        return ResponseEntity.ok(dto);
     }
 
     // New endpoint to resend tickets

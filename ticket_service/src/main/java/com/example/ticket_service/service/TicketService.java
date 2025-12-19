@@ -3,6 +3,8 @@ package com.example.ticket_service.service;
 import com.example.ticket_service.dto.TicketTransferCompletedEvent;
 import com.example.ticket_service.dto.TicketTransferRequest;
 import com.example.ticket_service.dto.TicketTransferRequestedEvent;
+import com.example.ticket_service.dto.CheckInLogDto;
+import com.example.ticket_service.dto.TicketInfoDto;
 import com.example.ticket_service.feign_client.AuthServiceClient;
 import com.example.ticket_service.feign_client.EventServiceClient;
 import com.example.ticket_service.model.Ticket;
@@ -15,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -42,23 +46,31 @@ public class TicketService {
         return ticketRepository.findByOrderId(orderId);
     }
 
+    public List<Ticket> getTicketsByEventId(Long eventId) {
+        return ticketRepository.findByEventId(eventId);
+    }
+
     @Transactional
     public Ticket scanTicket(String ticketCode, String gate, String deviceId, String staffId) {
         Ticket ticket = getTicketByCode(ticketCode);
 
         List<Long> assignedEvents = authServiceClient.getAssignedEvents(staffId);
-
-        if (!assignedEvents.contains(ticket.getEventId())) {
+        // If assignments exist and the event isn't among them, block. If none are returned, fall back to allowing (e.g., organizer/admin).
+        if (assignedEvents != null && !assignedEvents.isEmpty() && !assignedEvents.contains(ticket.getEventId())) {
             throw new RuntimeException("You are not authorized to check in tickets for this event.");
         }
 
         var eventDetails = eventServiceClient.getEventById(ticket.getEventId());
 
-        LocalDateTime now = LocalDateTime.now();
+        ZoneId zone = ZoneId.of("Asia/Ho_Chi_Minh");
+        ZonedDateTime now = ZonedDateTime.now(zone);
 
-        LocalDateTime checkinStart = eventDetails.getStartTime().minusMinutes(15);
+        ZonedDateTime checkinStart = eventDetails.getStartTime().atZone(zone).minusMinutes(15);
+        ZonedDateTime checkinEnd = eventDetails.getEndTime().atZone(zone);
 
-        LocalDateTime checkinEnd = eventDetails.getEndTime(); 
+        if (!"PUBLISHED".equalsIgnoreCase(eventDetails.getStatus())) {
+            throw new RuntimeException("Event is not active for check-in.");
+        }
 
         if (now.isBefore(checkinStart) || now.isAfter(checkinEnd)) {
             throw new RuntimeException("Ticket can only be scanned between " + checkinStart + " and " + checkinEnd);
@@ -160,5 +172,12 @@ public class TicketService {
         Ticket ticket = getTicketByCode(ticketCode);
         ticket.setStatus(newStatus);
         return ticketRepository.save(ticket);
+    }
+
+    public List<CheckInLogDto> getCheckInLogsForEvent(Long eventId) {
+        return ticketRepository.findByEventId(eventId).stream()
+                .filter(t -> t.getStatus() == TicketStatus.SCANNED)
+                .map(CheckInLogDto::fromTicket)
+                .toList();
     }
 }

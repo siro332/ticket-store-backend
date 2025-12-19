@@ -51,20 +51,21 @@ public class PaymentService {
         }
 
         // Default to VNPAY or existing logic
-        String paymentUrl = vnpayService.createPaymentUrl(req.getOrderId(), req.getAmount().longValue());
+        var paymentInfo = vnpayService.createPaymentUrl(req.getOrderId(), req.getAmount().longValue());
 
         PaymentTransaction tx = PaymentTransaction.builder()
                 .orderId(req.getOrderId())
                 .amount(req.getAmount())
                 .paymentMethod(req.getPaymentMethod()) // Or "VNPAY" if null? existing code used req.getPaymentMethod()
                 .transactionId("TX" + System.currentTimeMillis())
+                .vnpayTxnRef(paymentInfo.getTxnRef())
                 .status(PaymentTransaction.Status.PENDING)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
 
         PaymentTransaction savedTx = repo.save(tx);
-        savedTx.setPaymentUrl(paymentUrl);
+        savedTx.setPaymentUrl(paymentInfo.getPaymentUrl());
 
         return savedTx;
     }

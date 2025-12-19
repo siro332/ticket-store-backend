@@ -43,6 +43,10 @@ public class EventService {
         return eventRepository.findAll();
     }
 
+    public List<Event> getEventsByStatus(Event.Status status) {
+        return eventRepository.findByStatus(status);
+    }
+
     public Event getById(Long id) {
         return eventRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Event not found"));
@@ -129,6 +133,24 @@ public class EventService {
     public TicketType getTicketTypeById(Long id) {
         return ticketTypeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Ticket type not found"));
+    }
+
+    @Transactional
+    public TicketType decrementTicketQuota(Long ticketTypeId, Integer quantity) {
+        if (quantity == null || quantity < 1) {
+            throw new IllegalArgumentException("Quantity must be at least 1");
+        }
+        TicketType ticketType = ticketTypeRepository.findById(ticketTypeId)
+                .orElseThrow(() -> new RuntimeException("Ticket type not found"));
+        Integer quota = ticketType.getQuota();
+        if (quota == null) {
+            throw new RuntimeException("Ticket quota not configured for ticket type " + ticketTypeId);
+        }
+        if (quota < quantity) {
+            throw new RuntimeException("Not enough tickets available for ticket type " + ticketTypeId);
+        }
+        ticketType.setQuota(quota - quantity);
+        return ticketTypeRepository.save(ticketType);
     }
 
     public void deleteTicketType(Long ticketTypeId) {
@@ -218,8 +240,8 @@ public class EventService {
                 .build();
     }
 
-    public Page<Event> searchEvents(String keyword, String category, LocalDateTime startTime, LocalDateTime endTime, BigDecimal minPrice, BigDecimal maxPrice, String location, Pageable pageable) {
-        Specification<Event> spec = EventSpecification.withFilters(keyword, category, startTime, endTime, minPrice, maxPrice, location);
+    public Page<Event> searchEvents(String keyword, String category, LocalDateTime startTime, LocalDateTime endTime, BigDecimal minPrice, BigDecimal maxPrice, String location, Event.Status status, Pageable pageable) {
+        Specification<Event> spec = EventSpecification.withFilters(keyword, category, startTime, endTime, minPrice, maxPrice, location, status);
         return eventRepository.findAll(spec, pageable);
     }
 }

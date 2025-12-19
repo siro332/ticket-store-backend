@@ -46,5 +46,6 @@ public class User {
     private Timestamp updatedAt;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true) // Revert to LAZY
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Set<UserOrganizationRole> organizationRoles = new HashSet<>();
 }

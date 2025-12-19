@@ -23,6 +23,16 @@ public class MarketplaceController {
         return ResponseEntity.ok(marketplaceService.getActiveListings());
     }
 
+    @GetMapping("/seller/{sellerId}")
+    public ResponseEntity<List<MarketplaceListing>> getSellerListings(@PathVariable String sellerId) {
+        return ResponseEntity.ok(marketplaceService.getListingsForSeller(sellerId));
+    }
+
+    @GetMapping("/seller")
+    public ResponseEntity<List<MarketplaceListing>> getSellerListingsQuery(@RequestParam String sellerId) {
+        return ResponseEntity.ok(marketplaceService.getListingsForSeller(sellerId));
+    }
+
     @PostMapping
     public ResponseEntity<MarketplaceListing> postTicket(@RequestBody PostTicketRequest request) {
         return ResponseEntity.ok(marketplaceService.postTicket(request));

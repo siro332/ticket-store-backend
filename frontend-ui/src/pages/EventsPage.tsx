@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Container, Grid, Card, CardContent, CardMedia, Typography, Button, Box, TextField, CircularProgress, Paper, InputAdornment, Pagination, Stack, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import { EventsService } from '../api/services/EventsService';
 import type { Event } from '../api/models/Event';
+import { EventStatus } from '../api/models/EventStatus';
 import { Link as RouterLink } from 'react-router-dom';
 import { useNotification } from '../context/NotificationContext';
 import { motion } from 'framer-motion';
@@ -48,6 +49,7 @@ const EventsPage: React.FC = () => {
         undefined, // endTime
         searchParams.minPrice ? parseFloat(searchParams.minPrice) : undefined,
         searchParams.maxPrice ? parseFloat(searchParams.maxPrice) : undefined,
+        EventStatus.PUBLISHED,
         searchParams.location || undefined,
         currentPage,
         EVENTS_PER_PAGE

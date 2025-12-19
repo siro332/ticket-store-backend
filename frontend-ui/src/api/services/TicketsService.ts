@@ -74,6 +74,7 @@ export class TicketsService {
         ticketCode: string,
         gate?: string,
         deviceId?: string,
+        staffId?: string,
     ): CancelablePromise<TicketResponse> {
         return __request(OpenAPI, {
             method: 'POST',
@@ -84,6 +85,7 @@ export class TicketsService {
             query: {
                 'gate': gate,
                 'deviceId': deviceId,
+                'staffId': staffId,
             },
             errors: {
                 400: `Ticket already scanned or invalid`,

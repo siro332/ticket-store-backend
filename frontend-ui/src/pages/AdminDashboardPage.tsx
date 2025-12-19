@@ -3,6 +3,8 @@ import { Container, Grid, Card, CardContent, Button, Table, TableBody, TableCell
 import { OrganizationService } from '../api/services/OrganizationService';
 import type { Organization } from '../api/models/Organization';
 import type { UserOrganizationRole } from '../api/models/UserOrganizationRole';
+import type { Role } from '../api/models/Role';
+import { RolesService } from '../api/services/RolesService';
 import { UsersService } from '../api/services/UsersService';
 import type { User } from '../api/models/User';
 import { useAuth } from '../context/AuthContext';
@@ -19,16 +21,19 @@ const AdminDashboardPage: React.FC = () => {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
   const [organizationUsersRoles, setOrganizationUsersRoles] = useState<UserOrganizationRole[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
 
   const [showAddUserRoleModal, setShowAddUserRoleModal] = useState(false);
   const [newUserId, setNewUserId] = useState('');
   const [newRoleId, setNewRoleId] = useState('');
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // State for Create New Organization form
   const [newOrgName, setNewOrgName] = useState('');
   const [owner, setOwner] = useState<User | null>(null);
-  const [userSearch, setUserSearch] = useState('');
   const [userOptions, setUserOptions] = useState<User[]>([]);
+  const [ownerSearch, setOwnerSearch] = useState('');
+  const [userSearch, setUserSearch] = useState('');
 
   const [globalPaymentMethods, setGlobalPaymentMethods] = useState<string[]>(['Credit Card', 'PayPal']);
   const [newPaymentMethod, setNewPaymentMethod] = useState<string>('');
@@ -37,22 +42,30 @@ const AdminDashboardPage: React.FC = () => {
   const [globalRefundPolicyText, setGlobalRefundPolicyText] = useState<string>('Standard refund policy: 14 days full refund.');
 
   useEffect(() => {
-    if (!user?.roles?.includes('ADMIN')) {
+    const roles = user?.roles || [];
+    const isAdmin = roles.includes('ROLE_ADMIN') || roles.includes('ADMIN');
+    if (!isAdmin) {
       showNotification('You are not authorized to access this page.', 'error');
       setLoading(false);
       return;
     }
     fetchOrganizations();
+    fetchRoles();
   }, [user, showNotification]);
 
-  useEffect(() => {
-    if (userSearch) {
-      const timer = setTimeout(() => {
-        UsersService.searchUsers(userSearch).then(setUserOptions);
-      }, 500);
-      return () => clearTimeout(timer);
+  const fetchUsers = async (term: string) => {
+    if (!term || term.trim().length < 1) {
+      setUserOptions([]);
+      return;
     }
-  }, [userSearch]);
+    try {
+      const users = await UsersService.searchUsers(term.trim());
+      setUserOptions(users);
+    } catch (err) {
+      console.error('User search failed', err);
+      setUserOptions([]);
+    }
+  };
 
   const fetchOrganizations = async () => {
     setLoading(true);
@@ -82,6 +95,15 @@ const AdminDashboardPage: React.FC = () => {
     }
   };
 
+  const fetchRoles = async () => {
+    try {
+      const fetchedRoles = await RolesService.getApiAdminRoles();
+      setRoles(fetchedRoles);
+    } catch (err: any) {
+      console.error('Failed to fetch roles', err);
+    }
+  };
+
   const handleSelectOrganization = (event: React.ChangeEvent<HTMLInputElement>) => {
     const orgId = event.target.value;
     const org = organizations.find(o => o.id === orgId);
@@ -94,15 +116,16 @@ const AdminDashboardPage: React.FC = () => {
   };
 
   const handleAddUserRole = async () => {
-    if (!selectedOrganization?.id || !newUserId || !newRoleId) {
-      showNotification('Please select an organization and provide User ID and Role ID.', 'warning');
+    const targetUserId = selectedUser?.id || newUserId;
+    if (!selectedOrganization?.id || !targetUserId || !newRoleId) {
+      showNotification('Please select an organization, user, and role.', 'warning');
       return;
     }
     setLoading(true);
     try {
       await OrganizationService.postApiOrganizationsUsersRoles(
         selectedOrganization.id,
-        newUserId,
+        targetUserId,
         parseInt(newRoleId)
       );
       showNotification('User role added successfully!', 'success');
@@ -110,6 +133,7 @@ const AdminDashboardPage: React.FC = () => {
       setShowAddUserRoleModal(false);
       setNewUserId('');
       setNewRoleId('');
+      setSelectedUser(null);
     } catch (err: any) {
       const errorMessage = err.body?.message || err.response?.data?.message || err.message || 'Failed to add user role.';
       showNotification(errorMessage, 'error');
@@ -162,10 +186,13 @@ const AdminDashboardPage: React.FC = () => {
     }
     setLoading(true);
     try {
-      await OrganizationService.postApiOrganizations({
-        name: newOrgName,
-        ownerUserId: owner.id,
-      });
+      await OrganizationService.postApiOrganizations(
+        owner.id!,
+        {
+          name: newOrgName,
+          contactEmail: owner.email,
+        }
+      );
       showNotification('Organization created successfully!', 'success');
       setNewOrgName('');
       setOwner(null);
@@ -238,12 +265,19 @@ const AdminDashboardPage: React.FC = () => {
             sx={{ mb: 2 }}
           />
           <Autocomplete
-              options={userOptions}
-              getOptionLabel={(option) => `${option.fullName} (${option.email})`}
-              onInputChange={(e, newValue) => setUserSearch(newValue)}
-              onChange={(e, newValue) => setOwner(newValue)}
-              value={owner}
-              renderInput={(params) => <TextField {...params} label="Owner" fullWidth />}
+            options={userOptions}
+            getOptionLabel={(option) => option.fullName || option.email || option.id || ''}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            onInputChange={(e, newValue) => {
+              setOwnerSearch(newValue);
+              fetchUsers(newValue);
+            }}
+            onChange={(e, newValue) => setOwner(newValue)}
+            value={owner}
+            filterOptions={(opts) => opts}
+            loading={ownerSearch.length > 0 && userOptions.length === 0}
+            noOptionsText={ownerSearch ? 'No users found' : 'Type to search users'}
+            renderInput={(params) => <TextField {...params} label="Owner" fullWidth />}
           />
           <Button variant="contained" onClick={handleCreateOrganization} disabled={loading} sx={{mt: 2}}>
             Create Organization
@@ -301,20 +335,19 @@ const AdminDashboardPage: React.FC = () => {
                     <TableBody>
                       {organizationUsersRoles.map(uor => (
                         <TableRow key={uor.id}>
-                          <TableCell>{uor.user?.id}</TableCell>
-                          <TableCell>{uor.user?.fullName}</TableCell>
-                          <TableCell>{uor.user?.email}</TableCell>
+                          <TableCell>{uor.userId}</TableCell>
+                          <TableCell>{uor.userName}</TableCell>
+                          <TableCell>{uor.userEmail}</TableCell>
                           <TableCell>
                             <TextField
                               select
                               size="small"
-                              value={uor.role?.id || ''}
+                              value={uor.roleId ? uor.roleId.toString() : ''}
                               onChange={(e) => handleUpdateUserRole(uor.id!, parseInt(e.target.value))}
                             >
-                              <MenuItem value="1">ADMIN</MenuItem>
-                              <MenuItem value="2">ORGANIZER</MenuItem>
-                              <MenuItem value="3">STAFF</MenuItem>
-                              <MenuItem value="4">USER</MenuItem>
+                              {roles.map(r => (
+                                <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>
+                              ))}
                             </TextField>
                           </TableCell>
                           <TableCell>
@@ -408,15 +441,41 @@ const AdminDashboardPage: React.FC = () => {
       </Grid>
 
       <Dialog open={showAddUserRoleModal} onClose={() => setShowAddUserRoleModal(false)}>
-        <DialogTitle>Add User Role</DialogTitle>
-        <DialogContent>
+      <DialogTitle>Add User Role</DialogTitle>
+      <DialogContent>
+          <Autocomplete
+            options={userOptions}
+            getOptionLabel={(option) => `${option.fullName || option.email} (${option.id})`}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+            value={selectedUser}
+            onChange={(_, val) => {
+              setSelectedUser(val);
+              setNewUserId(val?.id || '');
+            }}
+            onInputChange={(_, value) => {
+              setUserSearch(value);
+              fetchUsers(value);
+            }}
+            filterOptions={(opts) => opts}
+            loading={userSearch.length > 0 && userOptions.length === 0}
+            noOptionsText={userSearch ? 'No users found' : 'Type to search users'}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                autoFocus
+                margin="dense"
+                label="Search user by name or email"
+                fullWidth
+              />
+            )}
+          />
           <TextField
-            autoFocus
             margin="dense"
             label="User ID (UUID)"
             fullWidth
-            value={newUserId}
+            value={selectedUser?.id || newUserId}
             onChange={(e) => setNewUserId(e.target.value)}
+            helperText="Auto-filled when selecting a user; you can also paste an ID."
           />
           <TextField
             select
@@ -426,10 +485,9 @@ const AdminDashboardPage: React.FC = () => {
             value={newRoleId}
             onChange={(e) => setNewRoleId(e.target.value)}
           >
-            <MenuItem value="1">ADMIN</MenuItem>
-            <MenuItem value="2">ORGANIZER</MenuItem>
-            <MenuItem value="3">STAFF</MenuItem>
-            <MenuItem value="4">USER</MenuItem>
+            {roles.map(r => (
+              <MenuItem key={r.id} value={r.id?.toString() || ''}>{r.name}</MenuItem>
+            ))}
           </TextField>
         </DialogContent>
         <DialogActions>

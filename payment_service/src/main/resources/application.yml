@@ -23,7 +23,7 @@ order:
   service-url: http://localhost:8083
 
 vnpay:
-  tmn-code: YOUR_TMN_CODE
-  hash-secret: YOUR_HASH_SECRET
+  tmn-code: 26Y53ZCM
+  hash-secret: KPZCXXWTKWLWIT3K6O8PBOKLL3G9VW6R
   pay-url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-  return-url: http://localhost:3000/payment-return
+  return-url: http://localhost:5173/payment-return

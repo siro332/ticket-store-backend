@@ -7,8 +7,11 @@ import type { Role } from './Role';
 import type { User } from './User';
 export type UserOrganizationRole = {
     id?: number;
-    user?: User;
-    organization?: Organization;
-    role?: Role;
+    userId?: string;
+    userEmail?: string;
+    userName?: string;
+    organizationId?: string;
+    roleId?: number;
+    roleName?: string;
+    roleDescription?: string;
 };
-

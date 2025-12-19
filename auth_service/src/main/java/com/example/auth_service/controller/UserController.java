@@ -1,17 +1,18 @@
 package com.example.auth_service.controller;
 
 import com.example.auth_service.dto.JwtResponse;
+import com.example.auth_service.dto.UserSummaryDto;
 import com.example.auth_service.model.User;
 import com.example.auth_service.model.UserOrganizationRole;
+import com.example.auth_service.model.StaffEventAssignment;
 import com.example.auth_service.repository.UserOrganizationRoleRepository;
 import com.example.auth_service.repository.UserRepository;
+import com.example.auth_service.repository.StaffEventAssignmentRepository;
 import com.example.auth_service.service.OrganizationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.HashSet;
 import java.util.List;
@@ -19,8 +20,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.UUID;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.PathVariable;
 import java.util.Arrays;
 
 
@@ -33,13 +32,14 @@ public class UserController {
 
     private final UserRepository userRepository;
     private final UserOrganizationRoleRepository userOrganizationRoleRepository;
+    private final StaffEventAssignmentRepository staffEventAssignmentRepository;
     private final OrganizationService organizationService;
 
     @GetMapping("/search")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<User>> searchUsers(@RequestParam("query") String query) {
+    public ResponseEntity<List<UserSummaryDto>> searchUsers(@RequestParam("query") String query) {
         List<User> users = userRepository.findByEmailContainingIgnoreCaseOrFullNameContainingIgnoreCase(query, query);
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(users.stream().map(UserSummaryDto::fromEntity).toList());
     }
 
     @GetMapping("/me")
@@ -79,8 +79,33 @@ public class UserController {
 
     @GetMapping("/{userId}/assigned-events")
     public ResponseEntity<List<Long>> getAssignedEvents(@PathVariable String userId) {
-        // Mock implementation
-        return ResponseEntity.ok(Arrays.asList(1L, 2L, 3L));
+        UUID staffUuid = UUID.fromString(userId);
+        List<Long> eventIds = staffEventAssignmentRepository.findByStaffId(staffUuid)
+                .stream()
+                .map(StaffEventAssignment::getEventId)
+                .toList();
+        return ResponseEntity.ok(eventIds);
+    }
+
+    @PostMapping("/{userId}/assigned-events/{eventId}")
+    @PreAuthorize("hasAnyRole('ADMIN','ORGANIZER')")
+    public ResponseEntity<Void> assignStaffToEvent(@PathVariable String userId, @PathVariable Long eventId, Authentication auth) {
+        UUID staffUuid = UUID.fromString(userId);
+        UUID assignedBy = null;
+        if (auth != null && auth.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails principal) {
+            try {
+                // attempt to parse subject if UUID-like
+                assignedBy = UUID.fromString(principal.getUsername());
+            } catch (Exception ignored) {
+            }
+        }
+        StaffEventAssignment assignment = StaffEventAssignment.builder()
+                .staffId(staffUuid)
+                .eventId(eventId)
+                .assignedBy(assignedBy)
+                .build();
+        staffEventAssignmentRepository.save(assignment);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/{userId}/email")

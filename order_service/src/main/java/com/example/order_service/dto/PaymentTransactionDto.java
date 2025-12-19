@@ -17,6 +17,7 @@ public class PaymentTransactionDto {
     private Long orderId;
     private String paymentMethod;
     private String transactionId;
+    private String paymentUrl;
     private BigDecimal amount;
     private String status; // PaymentTransaction.Status enum as String
     private LocalDateTime createdAt;

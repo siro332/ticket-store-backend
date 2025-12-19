@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Grid, Card, CardContent, Typography, Box, CircularProgress, TextField, MenuItem } from '@mui/material';
+import { Container, Grid, Card, CardContent, Typography, Box, CircularProgress, TextField, MenuItem, Alert } from '@mui/material';
 import { EventsService } from '../api/services/EventsService';
 import { ReportingService } from '../api/services/ReportingService';
 import type { Event } from '../api/models/Event';
+import { EventStatus } from '../api/models/EventStatus';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const OrganizerReportsPage: React.FC = () => {
   const { user } = useAuth();
@@ -39,7 +39,7 @@ const OrganizerReportsPage: React.FC = () => {
   const fetchOrganizerEvents = async () => {
     setLoading(true);
     try {
-      const response = await EventsService.getApiEventsSearch();
+      const response = await EventsService.getApiEventsSearch(undefined, undefined, undefined, undefined, undefined, undefined, EventStatus.PUBLISHED);
       const allEvents = response.content || [];
       const organizerManagedEvents = allEvents.filter(event => event.organizerId === user?.id);
       setEvents(organizerManagedEvents);
@@ -194,16 +194,24 @@ const OrganizerReportsPage: React.FC = () => {
       <Card sx={{ mt: 4 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>Revenue by Event</Typography>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="revenue" fill="#8884d8" />
-            </BarChart>
-          </ResponsiveContainer>
+          {chartData.length === 0 ? (
+            <Alert severity="info">No data to display yet.</Alert>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 2 }}>
+              {chartData.map((row) => {
+                const max = Math.max(...chartData.map(c => c.revenue || 0), 1);
+                const width = Math.max(8, Math.min(100, (row.revenue / max) * 100));
+                return (
+                  <Box key={row.name}>
+                    <Typography variant="body2" sx={{ mb: 0.5 }}>{row.name} — {row.revenue}</Typography>
+                    <Box sx={{ height: 10, bgcolor: 'grey.200', borderRadius: 8 }}>
+                      <Box sx={{ width: `${width}%`, height: '100%', bgcolor: 'primary.main', borderRadius: 8 }} />
+                    </Box>
+                  </Box>
+                );
+              })}
+            </Box>
+          )}
         </CardContent>
       </Card>
     </Container>

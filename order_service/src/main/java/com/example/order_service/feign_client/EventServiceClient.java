@@ -25,4 +25,7 @@ public interface EventServiceClient {
 
     @PostMapping("/api/events/discounts/{discountId}/increment-usage")
     void incrementDiscountUsedCount(@PathVariable("discountId") Long discountId);
+
+    @PostMapping("/api/events/ticket-types/{id}/decrement-quota")
+    void decrementTicketQuota(@PathVariable("id") Long ticketTypeId, @RequestParam("quantity") Integer quantity);
 }

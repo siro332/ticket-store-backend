@@ -33,4 +33,25 @@ export class UsersService {
             query: { 'query': query }
         });
     }
+
+    /**
+     * Assign a user (staff) to an event
+     * @param userId
+     * @param eventId
+     * @returns void
+     * @throws ApiError
+     */
+    public static postApiUsersAssignedEvents(
+        userId: string,
+        eventId: number,
+    ): CancelablePromise<void> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/users/{userId}/assigned-events/{eventId}',
+            path: {
+                'userId': userId,
+                'eventId': eventId,
+            },
+        });
+    }
 }

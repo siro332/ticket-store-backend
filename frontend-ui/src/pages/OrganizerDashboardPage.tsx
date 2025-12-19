@@ -3,6 +3,7 @@ import { Container, Grid, Card, CardContent, CardMedia, Button, Typography, Box,
 import { Link as RouterLink } from 'react-router-dom';
 import { EventsService } from '../api/services/EventsService';
 import type { Event } from '../api/models/Event';
+import { EventStatus } from '../api/models/EventStatus';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import AddIcon from '@mui/icons-material/Add';
@@ -29,7 +30,7 @@ const OrganizerDashboardPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await EventsService.getApiEventsSearch();
+      const response = await EventsService.getApiEventsSearch(undefined, undefined, undefined, undefined, undefined, undefined, EventStatus.PUBLISHED);
       const allEvents = response.content || [];
       const organizerEvents = allEvents.filter(event => event.organizerId === user.id);
       setEvents(organizerEvents);

@@ -28,6 +28,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/users/*/assigned-events/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/organizations/**").hasAnyRole("ADMIN", "ORGANIZER")
                         .anyRequest().authenticated())
@@ -46,4 +47,3 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 }
-

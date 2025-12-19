@@ -27,10 +27,11 @@ public class MarketplaceService {
     private final KafkaProducerService kafkaProducerService;
 
     public List<MarketplaceListing> getActiveListings() {
-        return marketplaceRepository.findAll()
-                .stream()
-                .filter(listing -> listing.getStatus() == MarketplaceListing.ListingStatus.ACTIVE)
-                .toList();
+        return marketplaceRepository.findByStatus(MarketplaceListing.ListingStatus.ACTIVE);
+    }
+
+    public List<MarketplaceListing> getListingsForSeller(String sellerId) {
+        return marketplaceRepository.findBySellerId(sellerId);
     }
 
     @Transactional
@@ -79,6 +80,7 @@ public class MarketplaceService {
             TicketSoldEvent event = TicketSoldEvent.builder()
                     .ticketCode(listing.getTicket().getTicketCode())
                     .sellerId(listing.getSellerId())
+                    .sellerEmail(listing.getTicket().getAttendeeEmail())
                     .buyerId(buyerId)
                     .price(listing.getPrice().toString())
                     .build();

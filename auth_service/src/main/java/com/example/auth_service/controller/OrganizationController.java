@@ -1,6 +1,8 @@
 package com.example.auth_service.controller;
 
+import com.example.auth_service.dto.OrganizationDto;
 import com.example.auth_service.dto.OrganizationResponse;
+import com.example.auth_service.dto.UserOrganizationRoleDto;
 import com.example.auth_service.model.Organization;
 import com.example.auth_service.model.UserOrganizationRole;
 import com.example.auth_service.service.OrganizationService;
@@ -20,8 +22,10 @@ public class OrganizationController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')") // Only ADMIN can view all organizations
-    public ResponseEntity<List<Organization>> getAllOrganizations() {
-        return ResponseEntity.ok(organizationService.getAllOrganizations());
+    public ResponseEntity<List<OrganizationDto>> getAllOrganizations() {
+        return ResponseEntity.ok(organizationService.getAllOrganizations().stream()
+                .map(OrganizationDto::fromEntity)
+                .toList());
     }
 
     @GetMapping("/{id}")
@@ -80,13 +84,23 @@ public class OrganizationController {
 
     @GetMapping("/{organizationId}/users-roles")
     @PreAuthorize("hasRole('ADMIN') or @organizationSecurity.isMemberOfOrganization(#organizationId)") // ADMIN or member
-    public ResponseEntity<List<UserOrganizationRole>> getUsersAndRolesInOrganization(@PathVariable UUID organizationId) {
-        return ResponseEntity.ok(organizationService.getUserRolesInOrganization(organizationId));
+    public ResponseEntity<List<UserOrganizationRoleDto>> getUsersAndRolesInOrganization(@PathVariable UUID organizationId) {
+        return ResponseEntity.ok(
+                organizationService.getUserRolesInOrganization(organizationId)
+                        .stream()
+                        .map(UserOrganizationRoleDto::fromEntity)
+                        .toList()
+        );
     }
 
     @GetMapping("/user/{userId}/organizations-roles")
     @PreAuthorize("authentication.principal.id == #userId or hasRole('ADMIN')") // User themselves or ADMIN
-    public ResponseEntity<List<UserOrganizationRole>> getUserOrganizationsAndRoles(@PathVariable UUID userId) {
-        return ResponseEntity.ok(organizationService.getUserOrganizationsAndRoles(userId));
+    public ResponseEntity<List<UserOrganizationRoleDto>> getUserOrganizationsAndRoles(@PathVariable UUID userId) {
+        return ResponseEntity.ok(
+                organizationService.getUserOrganizationsAndRoles(userId)
+                        .stream()
+                        .map(UserOrganizationRoleDto::fromEntity)
+                        .toList()
+        );
     }
 }

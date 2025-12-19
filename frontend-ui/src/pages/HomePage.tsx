@@ -9,6 +9,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import LocationOnOutlinedIcon from '@mui/icons-material/LocationOnOutlined';
 import { EventsService } from '../api/services/EventsService';
 import type { Event } from '../api/models/Event';
+import { EventStatus } from '../api/models/EventStatus';
 import { useNotification } from '../context/NotificationContext';
 
 const HomePage: React.FC = () => {
@@ -22,9 +23,16 @@ const HomePage: React.FC = () => {
       setLoadingEvents(true);
       try {
         const response = await EventsService.getApiEventsSearch(
-          undefined, undefined, undefined, undefined, undefined, undefined, 
-          activeTab === 'upcoming' ? 'startTime' : undefined, 
-          0, 6
+          undefined, // keyword
+          undefined, // category
+          undefined, // startTime
+          undefined, // endTime
+          undefined, // minPrice
+          undefined, // maxPrice
+          EventStatus.PUBLISHED,
+          undefined, // location
+          0,
+          6
         );
         let fetchedEvents = response.content || [];
         if (activeTab === 'popular') {

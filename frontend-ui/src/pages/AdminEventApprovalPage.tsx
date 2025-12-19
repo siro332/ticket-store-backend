@@ -15,7 +15,18 @@ const AdminEventApprovalPage: React.FC = () => {
   const fetchEventsByStatus = useCallback(async (status: EventStatus) => {
     setLoading(true);
     try {
-      const response = await EventsService.getApiEventsSearch(undefined, undefined, undefined, undefined, undefined, undefined, status);
+      const response = await EventsService.getApiEventsSearch(
+        undefined, // keyword
+        undefined, // category
+        undefined, // start
+        undefined, // end
+        undefined, // min
+        undefined, // max
+        status,    // status
+        undefined, // location
+        undefined, // page (use backend default)
+        undefined  // size
+      );
       setEvents(response.content || []);
     } catch (err: any) {
       showNotification(err.body?.message || `Failed to fetch ${status.toLowerCase()} events.`, 'error');
@@ -52,6 +63,8 @@ const AdminEventApprovalPage: React.FC = () => {
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
         <Tabs value={currentTab} onChange={handleTabChange} aria-label="event status tabs">
           <Tab label="Pending Approval" value={EventStatus.PENDING_APPROVAL} />
+          <Tab label="Approved" value={EventStatus.PUBLISHED} />
+          <Tab label="Cancelled" value={EventStatus.CANCELLED} />
         </Tabs>
       </Box>
 

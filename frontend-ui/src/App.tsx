@@ -41,6 +41,7 @@ import OrganizerDashboardPage from './pages/OrganizerDashboardPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminEventApprovalPage from './pages/AdminEventApprovalPage';
 import PaymentReturnPage from './pages/PaymentReturnPage';
+import PassTicketsPage from './pages/PassTicketsPage';
 import { CircularProgress, Box } from '@mui/material';
 
 const AppContent: React.FC = () => {
@@ -69,6 +70,7 @@ const AppContent: React.FC = () => {
         <Route element={<ProtectedRoute />}>
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/my-tickets" element={<MyTicketsPage />} />
+          <Route path="/pass-tickets" element={<PassTicketsPage />} />
           <Route path="/my-orders" element={<OrderHistoryPage />} />
           <Route path="/my-orders/:id" element={<OrderDetailsPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
