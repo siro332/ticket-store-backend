@@ -42,6 +42,11 @@ public class UserController {
         return ResponseEntity.ok(users.stream().map(UserSummaryDto::fromEntity).toList());
     }
 
+    @GetMapping("/exists")
+    public ResponseEntity<Boolean> userExists(@RequestParam("email") String email) {
+        return ResponseEntity.ok(userRepository.existsByEmail(email));
+    }
+
     @GetMapping("/me")
     public ResponseEntity<?> getProfile(Authentication auth) {
         String email = auth.getName();

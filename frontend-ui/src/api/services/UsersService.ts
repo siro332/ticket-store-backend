@@ -35,6 +35,22 @@ export class UsersService {
     }
 
     /**
+     * Check if a user exists by email
+     * @param email
+     * @returns boolean
+     * @throws ApiError
+     */
+    public static getApiUsersExists(
+        email: string,
+    ): CancelablePromise<boolean> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/users/exists',
+            query: { 'email': email }
+        });
+    }
+
+    /**
      * Assign a user (staff) to an event
      * @param userId
      * @param eventId

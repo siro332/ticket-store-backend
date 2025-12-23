@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button, TextField, Dialog, DialogActions, DialogContent, DialogTitle, CircularProgress } from '@mui/material';
 import { TicketsService } from '../api/services/TicketsService';
+import { UsersService } from '../api/services/UsersService';
 import { useNotification } from '../context/NotificationContext';
 
 interface TicketTransferModalProps {
@@ -24,10 +25,20 @@ const TicketTransferModal: React.FC<TicketTransferModalProps> = ({
   const handleTransfer = async () => {
     setLoading(true);
     try {
+      const recipientEmail = newAttendeeEmail.trim();
+      if (!recipientEmail) {
+        showNotification('Recipient email is required.', 'error');
+        return;
+      }
+      const userExists = await UsersService.getApiUsersExists(recipientEmail);
+      if (!userExists) {
+        showNotification('Recipient user does not exist.', 'error');
+        return;
+      }
       await TicketsService.postApiTicketsTransfer(
         ticketCode,
         newAttendeeName,
-        newAttendeeEmail
+        recipientEmail
       );
       showNotification('Ticket transferred successfully!', 'success');
       onTransferSuccess();
