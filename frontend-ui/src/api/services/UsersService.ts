@@ -51,6 +51,22 @@ export class UsersService {
     }
 
     /**
+     * Get user ID by email
+     * @param email
+     * @returns string
+     * @throws ApiError
+     */
+    public static getApiUsersIdByEmail(
+        email: string,
+    ): CancelablePromise<string> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/users/id-by-email',
+            query: { 'email': email }
+        });
+    }
+
+    /**
      * Assign a user (staff) to an event
      * @param userId
      * @param eventId

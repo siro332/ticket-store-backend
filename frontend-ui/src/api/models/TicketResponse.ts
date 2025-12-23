@@ -5,6 +5,7 @@
 export type TicketResponse = {
     id?: number;
     seatId?: number;
+    seatLabel?: string;
     ticketCode?: string;
     attendeeName?: string;
     attendeeEmail?: string;
@@ -12,4 +13,3 @@ export type TicketResponse = {
     createdAt?: string;
     updatedAt?: string;
 };
-

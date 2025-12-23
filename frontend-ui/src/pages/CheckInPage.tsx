@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Container, Grid, Card, CardContent, Button, TextField, MenuItem, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Box, CircularProgress, Typography, Alert, Stack } from '@mui/material';
+import { Container, Grid, Card, CardContent, Button, TextField, MenuItem, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Box, CircularProgress, Typography, Alert, Stack, Tooltip } from '@mui/material';
 import { EventsService } from '../api/services/EventsService';
 import { TicketsService } from '../api/services/TicketsService';
 import { UsersService } from '../api/services/UsersService';
@@ -28,6 +28,8 @@ const CheckInPage: React.FC = () => {
   const { user } = useAuth();
   const { showNotification } = useNotification();
   const [loading, setLoading] = useState<boolean>(true);
+  const isOrganizer = user?.roles?.includes('ROLE_ORGANIZER') || false;
+  const isAdmin = user?.roles?.includes('ROLE_ADMIN') || false;
 
   const [availableEvents, setAvailableEvents] = useState<Event[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>('');
@@ -42,6 +44,12 @@ const CheckInPage: React.FC = () => {
 
   const [checkInLogs, setCheckInLogs] = useState<CheckInLogDto[]>([]);
   const [attendeeTickets, setAttendeeTickets] = useState<TicketResponse[]>([]);
+  const [now, setNow] = useState<Date>(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!user?.id) {
@@ -126,7 +134,10 @@ const CheckInPage: React.FC = () => {
       const response = await EventsService.getApiEventsSearch(undefined, undefined, undefined, undefined, undefined, undefined, 'PUBLISHED', undefined, 0, 100);
       const allEvents = response.content || [];
       const published = allEvents.filter(event => event.status === 'PUBLISHED');
-      setAvailableEvents(published);
+      const visibleEvents = isOrganizer && !isAdmin
+        ? published.filter(event => event.organizerId === user?.id)
+        : published;
+      setAvailableEvents(visibleEvents);
     } catch (err: any) {
       const errorMessage = err.body?.message || err.response?.data?.message || err.message || 'Failed to fetch events.';
       showNotification(errorMessage, 'error');
@@ -134,6 +145,33 @@ const CheckInPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getCheckInWindow = (event: Event) => {
+    if (!event.startTime || !event.endTime) {
+      return null;
+    }
+    const start = new Date(event.startTime);
+    const end = new Date(event.endTime);
+    const windowStart = new Date(start.getTime() - 15 * 60 * 1000);
+    return { windowStart, start, end };
+  };
+
+  const checkInWindow = currentEvent ? getCheckInWindow(currentEvent) : null;
+  const isCheckInActive = !!checkInWindow && now >= checkInWindow.windowStart && now <= checkInWindow.end;
+  const isCheckInEnded = !!checkInWindow && now > checkInWindow.end;
+  const showCheckInTooltip = isCheckInActive;
+  const showCountdown = !!checkInWindow && now < checkInWindow.windowStart;
+
+  const formatCountdown = (target: Date) => {
+    const diffMs = Math.max(0, target.getTime() - now.getTime());
+    const totalSeconds = Math.floor(diffMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes
+      .toString()
+      .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
   const fetchEventData = useCallback(async (eventId: number) => {
@@ -300,6 +338,11 @@ const CheckInPage: React.FC = () => {
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   Window opens 15 minutes before start and closes at end time. Current start: {currentEvent.startTime ? new Date(currentEvent.startTime).toLocaleString() : 'N/A'}
                 </Typography>
+                {showCountdown && checkInWindow && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Check-in opens in {formatCountdown(checkInWindow.windowStart)}
+                  </Typography>
+                )}
                 <Box component="form" onSubmit={(e) => { e.preventDefault(); handleTicketScan(ticketCodeInput); }} sx={{ mb: 2 }}>
                   <TextField
                     fullWidth
@@ -310,14 +353,19 @@ const CheckInPage: React.FC = () => {
                     sx={{ mb: 2 }}
                   />
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 2 }}>
-                    <Button
-                      variant={isScanning ? 'outlined' : 'contained'}
-                      color="secondary"
-                      startIcon={<QrCodeScannerIcon />}
-                      onClick={() => setIsScanning(!isScanning)}
-                    >
-                      {isScanning ? 'Stop scanning' : 'Scan QR'}
-                    </Button>
+                    <Tooltip title={showCheckInTooltip ? 'Check-in is available' : ''} disableHoverListener={!showCheckInTooltip}>
+                      <span>
+                        <Button
+                          variant={isScanning ? 'outlined' : 'contained'}
+                          color="secondary"
+                          startIcon={<QrCodeScannerIcon />}
+                          onClick={() => setIsScanning(!isScanning)}
+                          disabled={!isCheckInActive || isCheckInEnded}
+                        >
+                          {isScanning ? 'Stop scanning' : 'Scan QR'}
+                        </Button>
+                      </span>
+                    </Tooltip>
                     {scannerError && <Typography color="error" variant="body2">{scannerError}</Typography>}
                   </Stack>
                   {isScanning && (
@@ -325,16 +373,20 @@ const CheckInPage: React.FC = () => {
                       <video ref={videoRef} style={{ width: '100%', maxHeight: 240, borderRadius: 8 }} muted playsInline />
                     </Box>
                   )}
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    fullWidth
-                    disabled={loading}
-                    startIcon={<QrCodeScannerIcon />}
-                    size="large"
-                  >
-                    {loading ? <CircularProgress size={24} color="inherit" /> : 'Scan / Check-in'}
-                  </Button>
+                  <Tooltip title={showCheckInTooltip ? 'Check-in is available' : ''} disableHoverListener={!showCheckInTooltip}>
+                    <span>
+                      <Button
+                        type="submit"
+                        variant="contained"
+                        fullWidth
+                        disabled={loading || !isCheckInActive || isCheckInEnded}
+                        startIcon={<QrCodeScannerIcon />}
+                        size="large"
+                      >
+                        {loading ? <CircularProgress size={24} color="inherit" /> : 'Scan / Check-in'}
+                      </Button>
+                    </span>
+                  </Tooltip>
                 </Box>
                 <Button variant="outlined" fullWidth onClick={handleExportAttendees} startIcon={<HistoryIcon />}>
                   Export Attendee List (CSV)
@@ -369,7 +421,7 @@ const CheckInPage: React.FC = () => {
                                 variant="outlined"
                                 size="small"
                                 onClick={() => handleTicketScan(log.ticket?.ticketCode || '', true)}
-                                disabled={loading}
+                                disabled={loading || !isCheckInActive || isCheckInEnded}
                                 startIcon={<RefreshIcon />}
                               >
                                 Scan Again
@@ -424,14 +476,18 @@ const CheckInPage: React.FC = () => {
                         <TableCell>{log?.checkInTime ? new Date(log.checkInTime).toLocaleString() : '-'}</TableCell>
                         <TableCell>
                           {!isCheckedIn && (
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              onClick={() => handleManualCheckIn(ticket.ticketCode!)}
-                              disabled={loading}
-                            >
-                              Manual
-                            </Button>
+                            <Tooltip title={showCheckInTooltip ? 'Check-in is available' : ''} disableHoverListener={!showCheckInTooltip}>
+                              <span>
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  onClick={() => handleManualCheckIn(ticket.ticketCode!)}
+                                  disabled={loading || !isCheckInActive || isCheckInEnded}
+                                >
+                                  Manual
+                                </Button>
+                              </span>
+                            </Tooltip>
                           )}
                         </TableCell>
                       </TableRow>

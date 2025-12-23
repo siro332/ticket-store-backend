@@ -1,7 +1,4 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback } from 'react';
-import type { TicketType } from '../api/models/TicketType';
-import type { Event } from '../api/models/Event';
-import type { Seat } from '../api/models/Seat';
 
 export interface CartItem {
   ticketTypeId: number;

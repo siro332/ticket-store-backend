@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Container, Grid, Card, CardContent, CardMedia, Typography, Button, TextField, Select, MenuItem, Chip, Box, List, ListItem, ListItemText, CircularProgress } from '@mui/material';
+import { useParams } from 'react-router-dom';
+import { Container, Grid, Card, CardContent, CardMedia, Typography, Button, TextField, Chip, Box, List, ListItem, ListItemText, CircularProgress } from '@mui/material';
 import { EventsService } from '../api/services/EventsService';
 import type { Event } from '../api/models/Event';
 import type { TicketType } from '../api/models/TicketType';
-import type { Seat } from '../api/models/Seat';
 import { useCart } from '../context/CartContext';
 import { useNotification } from '../context/NotificationContext';
 import { motion } from 'framer-motion';
@@ -12,16 +11,13 @@ import { motion } from 'framer-motion';
 const EventDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const eventId = id ? parseInt(id) : undefined;
-  const navigate = useNavigate();
   const { addToCart } = useCart();
   const { showNotification } = useNotification();
 
   const [event, setEvent] = useState<Event | null>(null);
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
-  const [seats, setSeats] = useState<Seat[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedQuantities, setSelectedQuantities] = useState<{ [key: number]: number }>({});
-  const [selectedSeat, setSelectedSeat] = useState<number | string>('');
 
   useEffect(() => {
     const fetchEventDetails = async () => {
@@ -45,10 +41,6 @@ const EventDetailPage: React.FC = () => {
         });
         setSelectedQuantities(initialQuantities);
 
-        // Always fetch seats, the seats.length will determine if seating is relevant
-        const fetchedSeats = await EventsService.getApiEventsSeats(eventId);
-        setSeats(fetchedSeats.filter(seat => seat.isAvailable && !seat.locked));
-        
       } catch (err: any) {
         showNotification(err.message || 'Failed to fetch event details.', 'error');
         console.error("Failed to fetch event details:", err);
@@ -67,30 +59,13 @@ const EventDetailPage: React.FC = () => {
     }));
   };
 
-  const handleAddToCart = (ticketType: TicketType, seatId?: number) => {
+  const handleAddToCart = (ticketType: TicketType) => {
     if (!event) return;
 
     const quantity = selectedQuantities[ticketType.id];
     if (!quantity || quantity <= 0) {
       showNotification('Please select a valid quantity.', 'warning');
       return;
-    }
-
-    // Determine the seat ID to use: either passed directly or from state
-    const targetSeatId = seatId || (typeof selectedSeat === 'number' ? selectedSeat : undefined);
-
-    // If seating is required for the event
-    if (hasSeatingOptions) {
-      if (!targetSeatId) {
-        showNotification('Please select a seat first.', 'warning');
-        return;
-      }
-
-      const seatObj = seats.find(s => s.id === targetSeatId);
-      if (seatObj?.ticketType?.id !== ticketType.id) {
-        showNotification(`The selected seat is for "${seatObj?.ticketType?.name || 'another'}" ticket type, not "${ticketType.name}".`, 'warning');
-        return;
-      }
     }
 
     addToCart(
@@ -100,15 +75,12 @@ const EventDetailPage: React.FC = () => {
         price: ticketType.price,
         eventId: event.id!,
         eventName: event.name!,
-        seatId: targetSeatId,
       },
       quantity
     );
     
     showNotification(`${quantity} x ${ticketType.name} added to cart!`, 'success');
     
-    // Clear seat selection so user can pick next seat
-    setSelectedSeat('');
   };
 
   if (loading) {
@@ -122,9 +94,6 @@ const EventDetailPage: React.FC = () => {
   if (!event) {
     return <Container sx={{ mt: 5, textAlign: 'center' }}><Typography variant="h5">Event not found or an error occurred.</Typography></Container>;
   }
-
-  // Determine if seating options should be displayed based on actual available seats
-  const hasSeatingOptions = seats.length > 0;
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4 }}>
@@ -224,33 +193,6 @@ const EventDetailPage: React.FC = () => {
             </CardContent>
           </Card>
 
-          {hasSeatingOptions && (
-            <Card component={motion.div} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
-              <CardContent>
-                <Typography variant="h5" gutterBottom>Available Seats</Typography>
-                {seats.length > 0 ? (
-                  <Box>
-                    <Grid container spacing={1}>
-                      {seats.map((seat) => (
-                        <Grid item xs={2} key={seat.id}>
-                          <Button
-                            variant={selectedSeat === seat.id ? 'contained' : 'outlined'}
-                            size="small"
-                            onClick={() => setSelectedSeat(seat.id!)}
-                            disabled={!seat.isAvailable}
-                          >
-                            {seat.seatNumber}
-                          </Button>
-                        </Grid>
-                      ))}
-                    </Grid>
-                  </Box>
-                ) : (
-                  <Typography variant="body2" color="text.secondary">No available seats for this event.</Typography>
-                )}
-              </CardContent>
-            </Card>
-          )}
         </Grid>
       </Grid>
     </Container>

@@ -44,6 +44,71 @@ export class EventsService {
             },
         });
     }
+
+    /**
+     * Save event draft from wizard
+     * @param requestBody
+     * @returns Event Event saved
+     * @throws ApiError
+     */
+    public static postApiEventsDraft(
+        requestBody: Record<string, any>,
+    ): CancelablePromise<Event> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/events/draft',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Invalid input`,
+                401: `Unauthorized`,
+                403: `Forbidden - Only ORGANIZERs can save drafts`,
+            },
+        });
+    }
+
+    /**
+     * Submit event from wizard
+     * @param requestBody
+     * @returns Event Event submitted
+     * @throws ApiError
+     */
+    public static postApiEventsSubmit(
+        requestBody: Record<string, any>,
+    ): CancelablePromise<Event> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/events/submit',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Invalid input`,
+                401: `Unauthorized`,
+                403: `Forbidden - Only ORGANIZERs can submit`,
+            },
+        });
+    }
+
+    /**
+     * Check if custom URL exists
+     * @param customUrl
+     * @param excludeEventId
+     * @returns boolean
+     * @throws ApiError
+     */
+    public static getApiEventsCustomUrlExists(
+        customUrl: string,
+        excludeEventId?: number,
+    ): CancelablePromise<boolean> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/events/custom-url/exists',
+            query: {
+                'customUrl': customUrl,
+                'excludeEventId': excludeEventId,
+            },
+        });
+    }
     /**
      * Get event by ID
      * @param id
@@ -505,6 +570,52 @@ export class EventsService {
             errors: {
                 401: `Unauthorized`,
                 403: `Forbidden - Only ORGANIZERs can submit events`,
+                404: `Event not found`,
+            },
+        });
+    }
+
+    /**
+     * Approve an event
+     * @param eventId
+     * @returns Event Event approved
+     * @throws ApiError
+     */
+    public static postApiEventsIdApprove(
+        eventId: number,
+    ): CancelablePromise<Event> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/events/{id}/approve',
+            path: {
+                'id': eventId,
+            },
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden - Only ADMINs can approve events`,
+                404: `Event not found`,
+            },
+        });
+    }
+
+    /**
+     * Cancel an event
+     * @param eventId
+     * @returns Event Event cancelled
+     * @throws ApiError
+     */
+    public static postApiEventsIdCancel(
+        eventId: number,
+    ): CancelablePromise<Event> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/events/{id}/cancel',
+            path: {
+                'id': eventId,
+            },
+            errors: {
+                401: `Unauthorized`,
+                403: `Forbidden - Only ADMINs or ORGANIZERs can cancel events`,
                 404: `Event not found`,
             },
         });

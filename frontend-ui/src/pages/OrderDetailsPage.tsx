@@ -189,7 +189,7 @@ const OrderDetailsPage: React.FC = () => {
                       <Box sx={{ mb: 2 }}>
                         <Typography variant="body2"><strong>Attendee:</strong> {ticket.attendeeName}</Typography>
                         <Typography variant="caption" color="text.secondary">{ticket.attendeeEmail}</Typography>
-                        {ticket.seatId && <Typography variant="body2"><strong>Seat ID:</strong> {ticket.seatId}</Typography>}
+                        {ticket.seatLabel && <Typography variant="body2"><strong>Seat:</strong> {ticket.seatLabel}</Typography>}
                       </Box>
                       
                       <Box sx={{ display: 'flex', gap: 1 }}>

@@ -100,6 +100,11 @@ const MyTicketsPage: React.FC = () => {
                   <Typography variant="body2" color="text.secondary">
                     Event ID: {ticket.eventId}
                   </Typography>
+                  {ticket.seatLabel && (
+                    <Typography variant="body2" color="text.secondary">
+                      Seat: {ticket.seatLabel}
+                    </Typography>
+                  )}
                   <Typography variant="body1">
                     {ticket.attendeeName}
                   </Typography>

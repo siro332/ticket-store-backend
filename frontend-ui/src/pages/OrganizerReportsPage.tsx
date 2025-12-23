@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Grid, Card, CardContent, Typography, Box, CircularProgress, TextField, MenuItem, Alert } from '@mui/material';
+import { Container, Grid, Card, CardContent, Typography, Box, CircularProgress, TextField, MenuItem, Alert, Button } from '@mui/material';
 import { EventsService } from '../api/services/EventsService';
 import { ReportingService } from '../api/services/ReportingService';
 import type { Event } from '../api/models/Event';
@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import ConfirmationNumberIcon from '@mui/icons-material/ConfirmationNumber';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 
 const OrganizerReportsPage: React.FC = () => {
   const { user } = useAuth();
@@ -22,6 +23,10 @@ const OrganizerReportsPage: React.FC = () => {
   const [totalTicketsSold, setTotalTicketsSold] = useState<number | null>(null);
   const [eventTicketsSold, setEventTicketsSold] = useState<number | null>(null);
   const [chartData, setChartData] = useState<{ name: string; revenue: number }[]>([]);
+  const [dailySales, setDailySales] = useState<{ date: string; count: number }[]>([]);
+  const [salesStartDate, setSalesStartDate] = useState<string>('');
+  const [salesEndDate, setSalesEndDate] = useState<string>('');
+  const [salesLoading, setSalesLoading] = useState(false);
 
   useEffect(() => {
     if (!user?.id) {
@@ -35,6 +40,23 @@ const OrganizerReportsPage: React.FC = () => {
   useEffect(() => {
     fetchReports();
   }, [events, selectedEventId, showNotification]);
+
+  useEffect(() => {
+    if (!selectedEventId) {
+      setSalesStartDate('');
+      setSalesEndDate('');
+      setDailySales([]);
+      return;
+    }
+    const event = events.find(e => e.id === parseInt(selectedEventId));
+    if (!event) {
+      return;
+    }
+    const publishedDate = resolvePublishedDate(event);
+    const endDate = resolveDefaultEndDate(event, publishedDate);
+    setSalesStartDate(publishedDate);
+    setSalesEndDate(endDate && endDate >= publishedDate ? endDate : publishedDate);
+  }, [events, selectedEventId]);
 
   const fetchOrganizerEvents = async () => {
     setLoading(true);
@@ -104,6 +126,56 @@ const OrganizerReportsPage: React.FC = () => {
 
   const handleEventSelectChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedEventId(e.target.value);
+  };
+
+  const resolvePublishedDate = (event: Event) => {
+    const date = event.updatedAt || event.createdAt || event.startTime || '';
+    return date ? new Date(date).toISOString().slice(0, 10) : '';
+  };
+
+  const resolveDefaultEndDate = (event: Event, fallback: string) => {
+    const date = event.startTime || '';
+    const end = date ? new Date(date).toISOString().slice(0, 10) : '';
+    if (!end && fallback) {
+      return fallback;
+    }
+    return end || new Date().toISOString().slice(0, 10);
+  };
+
+  const fetchDailySales = async () => {
+    if (!selectedEventId) {
+      showNotification('Select an event to view daily sales.', 'info');
+      return;
+    }
+    if (!salesStartDate || !salesEndDate) {
+      showNotification('Select a valid date range.', 'error');
+      return;
+    }
+    if (salesEndDate < salesStartDate) {
+      showNotification('End date must be on or after the start date.', 'error');
+      return;
+    }
+    setSalesLoading(true);
+    try {
+      const data = await ReportingService.getApiStatsEventsDailySales(
+        parseInt(selectedEventId),
+        salesStartDate,
+        salesEndDate
+      );
+      setDailySales(data);
+    } catch (err: any) {
+      const errorMessage = err.body?.message || err.response?.data?.message || err.message || 'Failed to fetch daily sales.';
+      showNotification(errorMessage, 'error');
+      console.error("Failed to fetch daily sales:", err);
+    } finally {
+      setSalesLoading(false);
+    }
+  };
+
+  const formatChartDate = (value: string) => {
+    if (!value) return '';
+    const [year, month, day] = value.split('-');
+    return `${day}/${month}/${year}`;
   };
 
   if (loading) {
@@ -190,6 +262,45 @@ const OrganizerReportsPage: React.FC = () => {
           </>
         )}
       </Grid>
+
+      {selectedEventId && (
+        <Card sx={{ mt: 4 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>Daily Ticket Sales</Typography>
+            <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr auto' }, alignItems: 'center', mb: 2 }}>
+              <TextField
+                label="From Date"
+                value={salesStartDate}
+                InputProps={{ readOnly: true }}
+              />
+              <TextField
+                label="To Date"
+                type="date"
+                value={salesEndDate}
+                onChange={e => setSalesEndDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+              />
+              <Button variant="contained" onClick={fetchDailySales} disabled={salesLoading}>
+                Filter
+              </Button>
+            </Box>
+            {dailySales.length === 0 ? (
+              <Alert severity="info">No daily sales data to display.</Alert>
+            ) : (
+              <Box sx={{ width: '100%', height: 320 }}>
+                <ResponsiveContainer>
+                  <BarChart data={dailySales}>
+                    <XAxis dataKey="date" tickFormatter={formatChartDate} />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip labelFormatter={formatChartDate} />
+                    <Bar dataKey="count" fill="#1976d2" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card sx={{ mt: 4 }}>
         <CardContent>

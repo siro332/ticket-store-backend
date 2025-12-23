@@ -80,4 +80,34 @@ export class ReportingService {
             },
         });
     }
+
+    /**
+     * Get daily ticket sales for an event
+     * @param eventId
+     * @param startDate
+     * @param endDate
+     * @returns DailySalesDto
+     * @throws ApiError
+     */
+    public static getApiStatsEventsDailySales(
+        eventId: number,
+        startDate?: string,
+        endDate?: string,
+    ): CancelablePromise<Array<{ date: string; count: number }>> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/api/stats/events/{eventId}/daily-sales',
+            path: {
+                'eventId': eventId,
+            },
+            query: {
+                'startDate': startDate,
+                'endDate': endDate,
+            },
+            errors: {
+                403: `Forbidden - Only ADMINs or ORGANIZERs can access reports`,
+                404: `Event not found`,
+            },
+        });
+    }
 }

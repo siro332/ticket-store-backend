@@ -32,6 +32,7 @@ import OrderHistoryPage from './pages/OrderHistoryPage';
 import MyTicketsPage from './pages/MyTicketsPage';
 import ProfilePage from './pages/ProfilePage';
 import EventFormPage from './pages/EventFormPage';
+import EventWizardPage from './pages/EventWizardPage';
 import OrganizerOrdersPage from './pages/OrganizerOrdersPage';
 import OrganizerReportsPage from './pages/OrganizerReportsPage';
 import CheckInPage from './pages/CheckInPage';
@@ -78,7 +79,7 @@ const AppContent: React.FC = () => {
         </Route>
         <Route element={<ProtectedRoute allowedRoles={['ROLE_ORGANIZER']} />}>
           <Route path="/organizer/dashboard" element={<OrganizerDashboardPage />} />
-          <Route path="/organizer/events/new" element={<EventFormPage />} />
+          <Route path="/organizer/events/new" element={<EventWizardPage />} />
           <Route path="/organizer/events/edit/:id" element={<EventFormPage />} />
           <Route path="/organizer/orders" element={<OrganizerOrdersPage />} />
           <Route path="/organizer/reports" element={<OrganizerReportsPage />} />

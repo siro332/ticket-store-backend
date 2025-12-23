@@ -77,7 +77,7 @@ const CheckoutPage: React.FC = () => {
     }
 
     try {
-      const orderItemsMap = new Map<number, { ticketTypeId: number; quantity: number; price: number; seatIds: number[] }>();
+      const orderItemsMap = new Map<number, { ticketTypeId: number; quantity: number; price: number }>();
 
       cartItems.forEach(item => {
         if (!orderItemsMap.has(item.ticketTypeId)) {
@@ -85,21 +85,16 @@ const CheckoutPage: React.FC = () => {
             ticketTypeId: item.ticketTypeId,
             quantity: 0,
             price: item.price,
-            seatIds: [],
           });
         }
         const currentItem = orderItemsMap.get(item.ticketTypeId)!;
         currentItem.quantity += item.quantity;
-        if (item.seatId) {
-          currentItem.seatIds.push(item.seatId);
-        }
       });
 
       const orderItems: OrderItemRequest[] = Array.from(orderItemsMap.values()).map(item => ({
         ticketTypeId: item.ticketTypeId,
         quantity: item.quantity,
         price: item.price,
-        seatIds: item.seatIds.length > 0 ? item.seatIds : undefined,
       }));
 
       const orderRequest = {
@@ -160,12 +155,12 @@ const CheckoutPage: React.FC = () => {
               <Typography variant="h6" gutterBottom>Order Summary</Typography>
               <List>
                 {cartItems.map((item, index) => (
-                  <ListItem key={`${item.ticketTypeId}-${item.seatId || 'no-seat'}-${index}`} divider={index !== cartItems.length - 1}>
+                  <ListItem key={`${item.ticketTypeId}-${index}`} divider={index !== cartItems.length - 1}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                       <Box>
                         <Typography variant="subtitle1">{item.eventName}</Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {item.ticketTypeName} {item.seatId ? `(Seat: ${item.seatId})` : ''}
+                          {item.ticketTypeName}
                         </Typography>
                       </Box>
                       <Typography>

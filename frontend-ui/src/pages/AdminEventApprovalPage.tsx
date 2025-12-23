@@ -43,14 +43,23 @@ const AdminEventApprovalPage: React.FC = () => {
     setCurrentTab(newValue);
   };
 
-  const handleUpdateStatus = async (eventId: number, newStatus: EventStatus) => {
+  const handleApprove = async (eventId: number) => {
     try {
-      await EventsService.putApiEventsStatus(eventId, newStatus);
-      showNotification(`Event ${eventId} has been updated to ${newStatus}.`, 'success');
-      // Refresh the list
+      await EventsService.postApiEventsIdApprove(eventId);
+      showNotification(`Event ${eventId} has been approved.`, 'success');
       fetchEventsByStatus(currentTab);
     } catch (err: any) {
-      showNotification(err.body?.message || `Failed to update event status.`, 'error');
+      showNotification(err.body?.message || `Failed to approve event.`, 'error');
+    }
+  };
+
+  const handleCancel = async (eventId: number) => {
+    try {
+      await EventsService.postApiEventsIdCancel(eventId);
+      showNotification(`Event ${eventId} has been cancelled.`, 'success');
+      fetchEventsByStatus(currentTab);
+    } catch (err: any) {
+      showNotification(err.body?.message || `Failed to cancel event.`, 'error');
     }
   };
 
@@ -93,9 +102,12 @@ const AdminEventApprovalPage: React.FC = () => {
                   <CardActions>
                     {currentTab === EventStatus.PENDING_APPROVAL && (
                       <>
-                        <Button size="small" onClick={() => handleUpdateStatus(event.id!, EventStatus.PUBLISHED)}>Approve</Button>
-                        <Button size="small" color="error" onClick={() => handleUpdateStatus(event.id!, EventStatus.CANCELLED)}>Reject</Button>
+                        <Button size="small" onClick={() => handleApprove(event.id!)}>Approve</Button>
+                        <Button size="small" color="error" onClick={() => handleCancel(event.id!)}>Reject</Button>
                       </>
+                    )}
+                    {currentTab === EventStatus.PUBLISHED && (
+                      <Button size="small" color="error" onClick={() => handleCancel(event.id!)}>Cancel</Button>
                     )}
                     <Button size="small" component={RouterLink} to={`/events/${event.id}`}>View Details</Button>
                   </CardActions>

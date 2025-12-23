@@ -8,5 +8,5 @@ export type TicketInfoDto = {
     attendeeName?: string;
     attendeeEmail?: string;
     status?: string;
+    seatLabel?: string;
 };
-

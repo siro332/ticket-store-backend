@@ -10,16 +10,16 @@ const CartPage: React.FC = () => {
   const { cartItems, updateQuantity, removeFromCart, getCartTotal, clearCart } = useCart();
   const { showNotification } = useNotification();
 
-  const handleUpdateQuantity = (ticketTypeId: number, event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, seatId?: number) => {
+  const handleUpdateQuantity = (ticketTypeId: number, event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const newQuantity = parseInt(event.target.value);
     if (!isNaN(newQuantity) && newQuantity >= 0) {
-      updateQuantity(ticketTypeId, newQuantity, seatId);
+      updateQuantity(ticketTypeId, newQuantity);
       showNotification('Cart item quantity updated.', 'info', 1000);
     }
   };
 
-  const handleRemoveItem = (ticketTypeId: number, seatId?: number) => {
-    removeFromCart(ticketTypeId, seatId);
+  const handleRemoveItem = (ticketTypeId: number) => {
+    removeFromCart(ticketTypeId);
     showNotification('Item removed from cart.', 'info', 1000);
   };
 
@@ -41,7 +41,7 @@ const CartPage: React.FC = () => {
             <List>
               {cartItems.map((item, index) => (
                 <ListItem
-                  key={`${item.ticketTypeId}-${item.seatId || 'no-seat'}-${index}`}
+                  key={`${item.ticketTypeId}-${index}`}
                   divider={index !== cartItems.length - 1}
                   sx={{ flexDirection: { xs: 'column', sm: 'row' }, gap: 2, py: 2 }}
                   component={motion.div}
@@ -50,7 +50,7 @@ const CartPage: React.FC = () => {
                   <Box sx={{ flexGrow: 1 }}>
                     <Typography variant="h6">{item.eventName}</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {item.ticketTypeName} {item.seatId ? `(Seat ID: ${item.seatId})` : ''}
+                      {item.ticketTypeName}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       ${item.price.toFixed(2)} each
@@ -64,13 +64,13 @@ const CartPage: React.FC = () => {
                       size="small"
                       inputProps={{ min: 0 }}
                       value={item.quantity}
-                      onChange={(e) => handleUpdateQuantity(item.ticketTypeId, e, item.seatId)}
+                      onChange={(e) => handleUpdateQuantity(item.ticketTypeId, e)}
                       sx={{ width: '80px' }}
                     />
                     <Typography variant="subtitle1" fontWeight="bold" sx={{ minWidth: '80px', textAlign: 'right' }}>
                       ${(item.price * item.quantity).toFixed(2)}
                     </Typography>
-                    <IconButton color="error" onClick={() => handleRemoveItem(item.ticketTypeId, item.seatId)}>
+                    <IconButton color="error" onClick={() => handleRemoveItem(item.ticketTypeId)}>
                       <DeleteIcon />
                     </IconButton>
                   </Box>

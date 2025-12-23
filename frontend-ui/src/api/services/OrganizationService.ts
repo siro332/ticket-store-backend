@@ -142,6 +142,36 @@ export class OrganizationService {
             },
         });
     }
+
+    /**
+     * Add user to an organization with a role name (Admin or organization owner)
+     * @param organizationId
+     * @param userId
+     * @param roleName
+     * @returns UserOrganizationRole User added to organization with role
+     * @throws ApiError
+     */
+    public static postApiOrganizationsUsersRolesByName(
+        organizationId: string,
+        userId: string,
+        roleName: string,
+    ): CancelablePromise<UserOrganizationRole> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/organizations/{organizationId}/users/{userId}/roles/by-name',
+            path: {
+                'organizationId': organizationId,
+                'userId': userId,
+            },
+            query: {
+                'roleName': roleName,
+            },
+            errors: {
+                403: `Forbidden - Not an ADMIN or owner`,
+                404: `Organization, User, or Role not found`,
+            },
+        });
+    }
     /**
      * Update a user's role within an organization (Admin or organization owner of the role)
      * @param userOrgRoleId
