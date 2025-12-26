@@ -5,6 +5,7 @@ import com.example.ticket_service.dto.TicketTransferRequest;
 import com.example.ticket_service.dto.TicketTransferRequestedEvent;
 import com.example.ticket_service.dto.CheckInLogDto;
 import com.example.ticket_service.dto.TicketInfoDto;
+import com.example.ticket_service.dto.TicketResponse;
 import com.example.ticket_service.feign_client.AuthServiceClient;
 import com.example.ticket_service.feign_client.EventServiceClient;
 import com.example.ticket_service.model.Ticket;
