@@ -76,7 +76,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   color: 'text.primary',
                 }}
               >
-                TicketStore
+                EventHub
               </Typography>
             </Box>
 
@@ -242,7 +242,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                 <ConfirmationNumberOutlinedIcon sx={{ mr: 1, color: 'primary.main' }} />
                 <Typography variant="h6" color="text.primary" fontWeight="bold">
-                  TicketStore
+                  EventHub
                 </Typography>
               </Box>
               <Typography variant="body2" color="text.secondary">
@@ -274,7 +274,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </Grid>
           <Box sx={{ mt: 5, pt: 3, borderTop: '1px solid', borderColor: 'divider', textAlign: 'center' }}>
             <Typography variant="body2" color="text.secondary">
-              © {new Date().getFullYear()} TicketStore Inc. All rights reserved.
+              © {new Date().getFullYear()} EventHub Inc. All rights reserved.
             </Typography>
           </Box>
         </Container>

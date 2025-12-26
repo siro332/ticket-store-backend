@@ -384,7 +384,7 @@ const HomePage: React.FC = () => {
             Host Your Own Event
           </Typography>
           <Typography variant="h6" color="text.secondary" paragraph sx={{ maxWidth: '600px', mx: 'auto', mb: 4, fontWeight: 400 }}>
-            Join thousands of organizers who trust TicketStore to manage sales, check-ins, and analytics.
+            Join thousands of organizers who trust EventHub to manage sales, check-ins, and analytics.
           </Typography>
           <Button component={RouterLink} to="/register" variant="contained" size="large" sx={{ px: 5 }}>
             Get Started

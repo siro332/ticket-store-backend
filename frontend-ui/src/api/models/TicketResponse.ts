@@ -7,6 +7,8 @@ export type TicketResponse = {
     seatId?: number;
     seatLabel?: string;
     ticketCode?: string;
+    eventName?: string;
+    eventCategory?: string;
     attendeeName?: string;
     attendeeEmail?: string;
     status?: string;

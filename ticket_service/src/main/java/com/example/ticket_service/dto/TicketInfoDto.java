@@ -12,6 +12,7 @@ public class TicketInfoDto {
     private String attendeeName;
     private String attendeeEmail;
     private String status;
+    private String seatLabel;
 
     public static TicketInfoDto fromEntity(Ticket ticket) {
         return TicketInfoDto.builder()
@@ -20,6 +21,7 @@ public class TicketInfoDto {
                 .attendeeName(ticket.getAttendeeName())
                 .attendeeEmail(ticket.getAttendeeEmail())
                 .status(ticket.getStatus() != null ? ticket.getStatus().name() : null)
+                .seatLabel(ticket.getSeatLabel())
                 .build();
     }
 }

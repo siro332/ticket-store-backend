@@ -250,7 +250,7 @@ const EventsPage: React.FC = () => {
                       <CardMedia
                         component="img"
                         height="220"
-                        image={event.coverImage || 'https://via.placeholder.com/400x220?text=Event'}
+                        image={event.bannerUrl || event.coverImage || 'https://via.placeholder.com/400x220?text=Event'}
                         alt={event.name}
                         sx={{ filter: 'brightness(0.95)' }}
                       />

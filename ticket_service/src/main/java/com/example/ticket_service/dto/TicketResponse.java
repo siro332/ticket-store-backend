@@ -15,7 +15,10 @@ public class TicketResponse {
     private Long eventId;
     private String userId;
     private Long seatId;
+    private String seatLabel;
     private String ticketCode;
+    private String eventName;
+    private String eventCategory;
     private String attendeeName;
     private String attendeeEmail;
     private TicketStatus status;
@@ -29,6 +32,7 @@ public class TicketResponse {
                 .eventId(ticket.getEventId())
                 .userId(ticket.getUserId())
                 .seatId(ticket.getSeatId())
+                .seatLabel(ticket.getSeatLabel())
                 .ticketCode(ticket.getTicketCode())
                 .attendeeName(ticket.getAttendeeName())
                 .attendeeEmail(ticket.getAttendeeEmail())

@@ -3,35 +3,30 @@ package com.example.event_service.model;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "ticket_types")
+@Table(name = "ticket_zones")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TicketType {
+public class TicketZone {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String code;
     private String name;
+    private LocalDateTime checkInTime;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "event_id")
     @com.fasterxml.jackson.annotation.JsonIgnore
     private Event event;
 
-    private BigDecimal price;
-    private Integer quota;
-    private Integer purchaseLimit; // New field: Max tickets per user
-    private LocalDateTime startSale;
-    private LocalDateTime endSale;
-
-    @Column(columnDefinition = "TEXT")
-    private String description;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ticket_type_id")
+    private TicketType ticketType;
 }

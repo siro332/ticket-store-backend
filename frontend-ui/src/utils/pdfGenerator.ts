@@ -18,7 +18,7 @@ export const generateTicketPDF = async (ticket: TicketResponse, event: Event | n
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(22);
   doc.setFont('helvetica', 'bold');
-  doc.text('TicketStore', 105, 20, { align: 'center' });
+  doc.text('EventHub', 105, 20, { align: 'center' });
   
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');

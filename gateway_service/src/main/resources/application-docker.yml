@@ -33,7 +33,7 @@ spring:
         - id: order-service
           uri: http://order-service:8083
           predicates:
-            - Path=/api/orders/**, /api/reservations/**, /api/reports/**
+            - Path=/api/orders/**, /api/reservations/**, /api/reports/**, /api/stats/**
 
         - id: payment-service
           uri: http://payment-service:8084

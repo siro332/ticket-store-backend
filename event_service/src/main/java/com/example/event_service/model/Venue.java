@@ -18,7 +18,10 @@ public class Venue {
     private String name;
     private String address;
     private String city;
+    private String province;
+    private String district;
+    private String ward;
+    private String streetAddress;
     private Integer capacity;
     private String mapImage;
 }
-

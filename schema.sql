@@ -108,6 +108,7 @@ create table ticket_store_db.tickets
     event_id       bigint                                                null,
     order_id       bigint                                                null,
     seat_id        bigint                                                null,
+    seat_label     varchar(255)                                          null,
     status         enum ('ISSUED', 'SCANNED', 'REFUNDED', 'TRANSFERRED') null,
     ticket_code    varchar(255)                                          null,
     updated_at     datetime(6)                                           null,
@@ -197,13 +198,17 @@ create table ticket_store_db.user_organization_roles
 
 create table ticket_store_db.venues
 (
-    id        bigint auto_increment
+    id             bigint auto_increment
         primary key,
-    address   varchar(255) null,
-    capacity  int          null,
-    city      varchar(255) null,
-    map_image varchar(255) null,
-    name      varchar(255) null
+    address        varchar(255) null,
+    capacity       int          null,
+    city           varchar(255) null,
+    district       varchar(255) null,
+    map_image      varchar(255) null,
+    name           varchar(255) null,
+    province       varchar(255) null,
+    street_address varchar(255) null,
+    ward           varchar(255) null
 );
 
 create table ticket_store_db.events
@@ -213,12 +218,17 @@ create table ticket_store_db.events
     allow_attendee_name_change bit                                                          null,
     allow_ticket_transfer      bit                                                          null,
     category                   varchar(255)                                                 null,
-    cover_image                varchar(255)                                                 null,
+    banner_url                 longtext                                                     null,
+    cover_image                longtext                                                     null,
     created_at                 datetime(6)                                                  null,
+    custom_url                 varchar(255)                                                 null,
     description                text                                                         null,
     end_time                   datetime(6)                                                  null,
+    event_code                 varchar(255)                                                 null,
+    logo_url                   longtext                                                     null,
     name                       varchar(255)                                                 null,
     organizer_id               binary(16)                                                   null,
+    privacy                    enum ('PUBLIC', 'PRIVATE')                                   null,
     refund_deadline_hours      int                                                          null,
     refund_enabled             bit                                                          null,
     refund_fee_percent         double                                                       null,
@@ -251,6 +261,8 @@ create table ticket_store_db.ticket_types
 (
     id             bigint auto_increment
         primary key,
+    code           varchar(255)   null,
+    description    text           null,
     end_sale       datetime(6)    null,
     name           varchar(255)   null,
     price          decimal(38, 2) null,
@@ -259,6 +271,86 @@ create table ticket_store_db.ticket_types
     start_sale     datetime(6)    null,
     event_id       bigint         null,
     constraint FKl83j9knh8jrssp3skaeubrrk
+        foreign key (event_id) references ticket_store_db.events (id)
+);
+
+create table ticket_store_db.event_showtimes
+(
+    id         bigint auto_increment
+        primary key,
+    code       varchar(255) null,
+    end_time   datetime(6)  null,
+    start_time datetime(6)  null,
+    event_id   bigint       null,
+    constraint FKevent_showtimes_event
+        foreign key (event_id) references ticket_store_db.events (id)
+);
+
+create table ticket_store_db.showtime_ticket_allocations
+(
+    id            bigint auto_increment
+        primary key,
+    quantity      int    null,
+    showtime_id   bigint null,
+    ticket_type_id bigint null,
+    constraint FKshowtime_alloc_showtime
+        foreign key (showtime_id) references ticket_store_db.event_showtimes (id),
+    constraint FKshowtime_alloc_ticket_type
+        foreign key (ticket_type_id) references ticket_store_db.ticket_types (id)
+);
+
+create table ticket_store_db.ticket_zones
+(
+    id             bigint auto_increment
+        primary key,
+    check_in_time  datetime(6)  null,
+    code           varchar(255) null,
+    name           varchar(255) null,
+    event_id       bigint       null,
+    ticket_type_id bigint       null,
+    constraint FKticket_zones_event
+        foreign key (event_id) references ticket_store_db.events (id),
+    constraint FKticket_zones_ticket_type
+        foreign key (ticket_type_id) references ticket_store_db.ticket_types (id)
+);
+
+create table ticket_store_db.event_organizer_info
+(
+    id             bigint auto_increment
+        primary key,
+    account_status varchar(255) null,
+    description    text         null,
+    logo_url       longtext     null,
+    organizer_code varchar(255) null,
+    organizer_name varchar(255) null,
+    terms_agreed   bit          null,
+    event_id       bigint       null,
+    constraint FKorganizer_info_event
+        foreign key (event_id) references ticket_store_db.events (id)
+);
+
+create table ticket_store_db.event_payout_info
+(
+    id                  bigint auto_increment
+        primary key,
+    account_holder_name varchar(255) null,
+    bank_name           varchar(255) null,
+    bank_number         varchar(255) null,
+    event_id            bigint       null,
+    constraint FKpayout_info_event
+        foreign key (event_id) references ticket_store_db.events (id)
+);
+
+create table ticket_store_db.event_invoice_info
+(
+    id           bigint auto_increment
+        primary key,
+    address      varchar(255) null,
+    company_name varchar(255) null,
+    enabled      bit          null,
+    tax_code     varchar(255) null,
+    event_id     bigint       null,
+    constraint FKinvoice_info_event
         foreign key (event_id) references ticket_store_db.events (id)
 );
 
@@ -280,3 +372,12 @@ create table ticket_store_db.seats
         foreign key (event_id) references ticket_store_db.events (id)
 );
 
+create table ticket_store_db.ticket_config_snapshots
+(
+    id         bigint auto_increment
+        primary key,
+    created_at datetime(6)  null,
+    event_code varchar(255) null,
+    event_id   bigint       null,
+    payload    longtext     null
+);

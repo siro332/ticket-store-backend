@@ -67,6 +67,15 @@ public class OrganizationController {
         return ResponseEntity.ok(organizationService.addUserToOrganization(organizationId, userId, roleId));
     }
 
+    @PostMapping("/{organizationId}/users/{userId}/roles/by-name")
+    @PreAuthorize("hasRole('ADMIN') or @organizationSecurity.isOwnerOfOrganization(#organizationId)")
+    public ResponseEntity<UserOrganizationRole> addUserToOrganizationByRoleName(
+            @PathVariable UUID organizationId,
+            @PathVariable UUID userId,
+            @RequestParam("roleName") String roleName) {
+        return ResponseEntity.ok(organizationService.addUserToOrganizationByRoleName(organizationId, userId, roleName));
+    }
+
     @PutMapping("/user-organization-roles/{userOrgRoleId}/roles/{newRoleId}")
     @PreAuthorize("hasRole('ADMIN') or @organizationSecurity.isOwnerOfUserOrganizationRole(#userOrgRoleId)") // ADMIN or owner of the organization associated with the role
     public ResponseEntity<UserOrganizationRole> updateUserOrganizationRole(

@@ -14,6 +14,9 @@ export type Event = {
     endTime?: string;
     venue?: Venue;
     coverImage?: string;
+    logoUrl?: string;
+    bannerUrl?: string;
+    organizerInfo?: any;
     status?: EventStatus;
     allowTicketTransfer?: boolean;
     allowAttendeeNameChange?: boolean;

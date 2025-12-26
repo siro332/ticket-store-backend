@@ -28,6 +28,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useNavigate, useParams } from 'react-router-dom';
 import { EventsService } from '../api/services/EventsService';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
@@ -61,7 +62,6 @@ const steps = [
   'Organizer Information',
   'Showtimes & Ticket Configuration',
   'Ticket Creation & Mapping',
-  'Settings & Payment',
   'Review & Submit',
 ];
 
@@ -69,21 +69,148 @@ const EventWizardInner: React.FC = () => {
   const { user } = useAuth();
   const { showNotification } = useNotification();
   const { state, dispatch } = useEventWizard();
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
 
+  // Fetch event data for editing
   React.useEffect(() => {
-    if (!state.basicInfo.eventCode) {
+    if (id) {
+      setLoading(true);
+      EventsService.getApiEvents1(parseInt(id))
+        .then((event: any) => {
+          dispatch({ type: 'SET_EVENT_ID', payload: event.id });
+          dispatch({ type: 'SET_STATUS', payload: event.status });
+          
+          dispatch({
+            type: 'UPDATE_BASIC_INFO',
+            payload: {
+              eventCode: event.eventCode,
+              name: event.name,
+              category: event.category,
+              description: event.description,
+              logoUrl: event.logoUrl,
+              bannerUrl: event.bannerUrl,
+            },
+          });
+
+          if (event.venue) {
+            dispatch({
+              type: 'UPDATE_VENUE',
+              payload: {
+                name: event.venue.name,
+                province: event.venue.province,
+                district: event.venue.district,
+                ward: event.venue.ward,
+                streetAddress: event.venue.streetAddress,
+              },
+            });
+          }
+
+          if (event.organizerInfo) {
+            dispatch({
+              type: 'UPDATE_ORGANIZER_INFO',
+              payload: {
+                organizerCode: event.organizerInfo.organizerCode,
+                organizerName: event.organizerInfo.organizerName,
+                logoUrl: event.organizerInfo.logoUrl,
+                description: event.organizerInfo.description,
+                termsAgreed: event.organizerInfo.termsAgreed,
+                accountStatus: event.organizerInfo.accountStatus,
+              },
+            });
+          }
+
+          if (event.showtimes) {
+            const showtimes = event.showtimes.map((s: any) => ({
+              code: s.code,
+              startTime: s.startTime,
+              endTime: s.endTime,
+            }));
+            dispatch({ type: 'SET_SHOWTIMES', payload: showtimes });
+
+            // Flatten allocations
+            const allocations: any[] = [];
+            event.showtimes.forEach((s: any) => {
+              if (s.allocations) {
+                s.allocations.forEach((a: any) => {
+                  allocations.push({
+                    showtimeCode: s.code,
+                    ticketTypeCode: a.ticketType?.code, // Assuming ticketType is populated
+                    quantity: a.quantity,
+                  });
+                });
+              }
+            });
+            dispatch({ type: 'SET_ALLOCATIONS', payload: allocations });
+          }
+
+          if (event.ticketTypes) {
+            const ticketTypes = event.ticketTypes.map((t: any) => ({
+              code: t.code,
+              name: t.name,
+              price: t.price,
+              maxQuantity: t.quota, // Map quota to maxQuantity
+              saleStart: t.startSale,
+              saleEnd: t.endSale,
+              description: t.description,
+            }));
+            dispatch({ type: 'SET_TICKET_TYPES', payload: ticketTypes });
+          }
+
+          if (event.ticketZones) {
+            const ticketDetails = event.ticketZones.map((z: any) => ({
+              code: z.code,
+              zoneName: z.name,
+              ticketTypeCode: z.ticketType?.code,
+              checkInTime: z.checkInTime,
+            }));
+            dispatch({ type: 'SET_TICKET_DETAILS', payload: ticketDetails });
+          }
+
+          if (event.customUrl) {
+            dispatch({ type: 'UPDATE_SETTINGS', payload: { customUrl: event.customUrl, privacy: event.privacy } });
+          }
+          
+          if (event.payoutInfo) {
+             dispatch({ type: 'UPDATE_PAYOUT', payload: {
+                accountHolderName: event.payoutInfo.accountHolderName,
+                bankNumber: event.payoutInfo.bankNumber,
+                bankName: event.payoutInfo.bankName
+             }});
+          }
+          
+          if (event.invoiceInfo) {
+             dispatch({ type: 'UPDATE_INVOICE', payload: {
+                enabled: event.invoiceInfo.enabled,
+                companyName: event.invoiceInfo.companyName,
+                taxCode: event.invoiceInfo.taxCode,
+                address: event.invoiceInfo.address
+             }});
+          }
+
+        })
+        .catch(err => {
+          showNotification('Failed to load event for editing.', 'error');
+          console.error(err);
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [id, dispatch, showNotification]);
+
+  React.useEffect(() => {
+    if (!id && !state.basicInfo.eventCode) {
       const code = `EVT-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
       dispatch({ type: 'UPDATE_BASIC_INFO', payload: { eventCode: code } });
     }
-    if (user?.id && !state.organizerInfo.organizerCode) {
+    if (!id && user?.id && !state.organizerInfo.organizerCode) {
       dispatch({ type: 'SET_ORGANIZER_ID', payload: user.id });
       const suffix = user.id.replace(/-/g, '').slice(0, 6).toUpperCase();
       dispatch({ type: 'UPDATE_ORGANIZER_INFO', payload: { organizerCode: `ORG-${suffix}` } });
     }
-  }, [dispatch, state.basicInfo.eventCode, state.organizerInfo.organizerCode, user?.id]);
+  }, [dispatch, state.basicInfo.eventCode, state.organizerInfo.organizerCode, user?.id, id]);
 
   const isOnline = state.basicInfo.category.toLowerCase() === 'online';
 
@@ -276,30 +403,6 @@ const EventWizardInner: React.FC = () => {
         return false;
       }
     }
-    if (stepIndex === 4) {
-      if (!state.settings.customUrl.trim()) {
-        showNotification('Custom URL is required.', 'error');
-        return false;
-      }
-      const exists = await EventsService.getApiEventsCustomUrlExists(
-        state.settings.customUrl.trim(),
-        state.eventId
-      );
-      if (exists) {
-        showNotification('Custom URL already exists.', 'error');
-        return false;
-      }
-      if (!state.payoutInfo.accountHolderName || !state.payoutInfo.bankNumber || !state.payoutInfo.bankName) {
-        showNotification('Payout info is required.', 'error');
-        return false;
-      }
-      if (state.invoiceInfo.enabled) {
-        if (!state.invoiceInfo.companyName || !state.invoiceInfo.taxCode || !state.invoiceInfo.address) {
-          showNotification('Invoice info is incomplete.', 'error');
-          return false;
-        }
-      }
-    }
     return true;
   };
 
@@ -327,8 +430,6 @@ const EventWizardInner: React.FC = () => {
   };
 
   const submitEvent = async () => {
-    const valid = await validateStep(4);
-    if (!valid) return;
     setLoading(true);
     try {
       const payload = buildPayload();
@@ -337,6 +438,7 @@ const EventWizardInner: React.FC = () => {
       dispatch({ type: 'SET_STATUS', payload: saved.status });
       showNotification('Event submitted for approval.', 'success');
       setSummaryOpen(true);
+      setTimeout(() => navigate('/organizer/dashboard'), 2000);
     } catch (err: any) {
       showNotification(err.body?.message || err.message || 'Submission failed.', 'error');
     } finally {
@@ -415,24 +517,38 @@ const EventWizardInner: React.FC = () => {
             <CardContent>
               <Typography variant="h6" gutterBottom>Images</Typography>
               <Box sx={{ display: 'grid', gap: 2 }}>
-                <Button variant="outlined" component="label">
-                  Upload Logo
-                  <input
-                    type="file"
-                    hidden
-                    accept="image/*"
-                    onChange={e => e.target.files && handleFileUpload(e.target.files[0], 'logoUrl')}
-                  />
-                </Button>
-                <Button variant="outlined" component="label">
-                  Upload Banner/Background
-                  <input
-                    type="file"
-                    hidden
-                    accept="image/*"
-                    onChange={e => e.target.files && handleFileUpload(e.target.files[0], 'bannerUrl')}
-                  />
-                </Button>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Button variant="outlined" component="label">
+                    Upload Logo
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*"
+                      onChange={e => e.target.files && handleFileUpload(e.target.files[0], 'logoUrl')}
+                    />
+                  </Button>
+                  {state.basicInfo.logoUrl && (
+                    <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <span role="img" aria-label="success">✅</span> Logo uploaded
+                    </Typography>
+                  )}
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Button variant="outlined" component="label">
+                    Upload Banner/Background
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*"
+                      onChange={e => e.target.files && handleFileUpload(e.target.files[0], 'bannerUrl')}
+                    />
+                  </Button>
+                  {state.basicInfo.bannerUrl && (
+                    <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <span role="img" aria-label="success">✅</span> Banner uploaded
+                    </Typography>
+                  )}
+                </Box>
               </Box>
             </CardContent>
           </Card>
@@ -493,15 +609,22 @@ const EventWizardInner: React.FC = () => {
                   value={state.organizerInfo.organizerName}
                   onChange={e => dispatch({ type: 'UPDATE_ORGANIZER_INFO', payload: { organizerName: e.target.value } })}
                 />
-                <Button variant="outlined" component="label">
-                  Upload Logo
-                  <input
-                    type="file"
-                    hidden
-                    accept="image/*"
-                    onChange={e => e.target.files && handleFileUpload(e.target.files[0], 'organizerLogo')}
-                  />
-                </Button>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Button variant="outlined" component="label">
+                    Upload Logo
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*"
+                      onChange={e => e.target.files && handleFileUpload(e.target.files[0], 'organizerLogo')}
+                    />
+                  </Button>
+                  {state.organizerInfo.logoUrl && (
+                    <Typography variant="caption" color="success.main" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <span role="img" aria-label="success">✅</span> Organizer logo uploaded
+                    </Typography>
+                  )}
+                </Box>
                 <TextField
                   label="Description"
                   multiline
@@ -827,87 +950,6 @@ const EventWizardInner: React.FC = () => {
       )}
 
       {activeStep === 4 && (
-        <Box sx={{ display: 'grid', gap: 3 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>Event Settings</Typography>
-              <TextField
-                label="Custom URL"
-                fullWidth
-                value={state.settings.customUrl}
-                onChange={e => dispatch({ type: 'UPDATE_SETTINGS', payload: { customUrl: e.target.value } })}
-              />
-              <RadioGroup
-                row
-                value={state.settings.privacy}
-                onChange={e => dispatch({ type: 'UPDATE_SETTINGS', payload: { privacy: e.target.value as 'PUBLIC' | 'PRIVATE' } })}
-              >
-                <FormControlLabel value="PUBLIC" control={<Radio />} label="Public" />
-                <FormControlLabel value="PRIVATE" control={<Radio />} label="Private" />
-              </RadioGroup>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>Payout Info</Typography>
-              <Box sx={{ display: 'grid', gap: 2 }}>
-                <TextField
-                  label="Account Holder Name"
-                  value={state.payoutInfo.accountHolderName}
-                  onChange={e => dispatch({ type: 'UPDATE_PAYOUT', payload: { accountHolderName: e.target.value } })}
-                />
-                <TextField
-                  label="Bank Number"
-                  value={state.payoutInfo.bankNumber}
-                  onChange={e => dispatch({ type: 'UPDATE_PAYOUT', payload: { bankNumber: e.target.value } })}
-                />
-                <TextField
-                  label="Bank Name"
-                  value={state.payoutInfo.bankName}
-                  onChange={e => dispatch({ type: 'UPDATE_PAYOUT', payload: { bankName: e.target.value } })}
-                />
-              </Box>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>Invoice Info</Typography>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={state.invoiceInfo.enabled}
-                    onChange={e => dispatch({ type: 'UPDATE_INVOICE', payload: { enabled: e.target.checked } })}
-                  />
-                }
-                label="Require Invoice"
-              />
-              {state.invoiceInfo.enabled && (
-                <Box sx={{ display: 'grid', gap: 2, mt: 2 }}>
-                  <TextField
-                    label="Company Name"
-                    value={state.invoiceInfo.companyName}
-                    onChange={e => dispatch({ type: 'UPDATE_INVOICE', payload: { companyName: e.target.value } })}
-                  />
-                  <TextField
-                    label="Tax Code"
-                    value={state.invoiceInfo.taxCode}
-                    onChange={e => dispatch({ type: 'UPDATE_INVOICE', payload: { taxCode: e.target.value } })}
-                  />
-                  <TextField
-                    label="Address"
-                    value={state.invoiceInfo.address}
-                    onChange={e => dispatch({ type: 'UPDATE_INVOICE', payload: { address: e.target.value } })}
-                  />
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Box>
-      )}
-
-      {activeStep === 5 && (
         <Box sx={{ display: 'grid', gap: 3 }}>
           <Card>
             <CardContent>

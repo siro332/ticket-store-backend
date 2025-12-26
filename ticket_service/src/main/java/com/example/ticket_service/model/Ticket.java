@@ -21,6 +21,7 @@ public class Ticket {
     private Long eventId;
     private String userId;
     private Long seatId; // Link to specific seat if applicable
+    private String seatLabel;
     private String ticketCode; // Unique code for QR/PDF
     private String attendeeName;
     private String attendeeEmail;

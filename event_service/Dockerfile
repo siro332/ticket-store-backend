@@ -1,6 +1,7 @@
 # ---- Build stage ----
 FROM eclipse-temurin:17-jdk-alpine AS builder
 
+RUN apk update && apk add --no-cache ca-certificates
 WORKDIR /app
 
 # Copy Gradle wrapper and build files first (better layer caching)

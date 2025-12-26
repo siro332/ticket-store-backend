@@ -56,11 +56,16 @@ public class TicketService {
 
         List<Long> assignedEvents = authServiceClient.getAssignedEvents(staffId);
         // If assignments exist and the event isn't among them, block. If none are returned, fall back to allowing (e.g., organizer/admin).
+        var eventDetails = eventServiceClient.getEventById(ticket.getEventId());
         if (assignedEvents != null && !assignedEvents.isEmpty() && !assignedEvents.contains(ticket.getEventId())) {
             throw new RuntimeException("You are not authorized to check in tickets for this event.");
         }
-
-        var eventDetails = eventServiceClient.getEventById(ticket.getEventId());
+        if (assignedEvents == null || assignedEvents.isEmpty()) {
+            String organizerId = eventDetails.getOrganizerId();
+            if (organizerId == null || !organizerId.equalsIgnoreCase(staffId)) {
+                throw new RuntimeException("You are not authorized to check in tickets for this event.");
+            }
+        }
 
         ZoneId zone = ZoneId.of("Asia/Ho_Chi_Minh");
         ZonedDateTime now = ZonedDateTime.now(zone);
@@ -179,5 +184,19 @@ public class TicketService {
                 .filter(t -> t.getStatus() == TicketStatus.SCANNED)
                 .map(CheckInLogDto::fromTicket)
                 .toList();
+    }
+
+    public TicketResponse toResponse(Ticket ticket) {
+        TicketResponse response = TicketResponse.fromEntity(ticket);
+        try {
+            var event = eventServiceClient.getEventById(ticket.getEventId());
+            if (event != null) {
+                response.setEventName(event.getName());
+                response.setEventCategory(event.getCategory());
+            }
+        } catch (Exception e) {
+            // Log error and continue with partial data
+        }
+        return response;
     }
 }

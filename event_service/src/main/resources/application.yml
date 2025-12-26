@@ -20,6 +20,8 @@ jwt:
 
 order:
   service-url: http://localhost:8083 # URL for the order service
+ticket:
+  service-url: http://localhost:8086
 
 logging: # Added logging configuration
   level:

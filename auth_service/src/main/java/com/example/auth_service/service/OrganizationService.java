@@ -100,6 +100,26 @@ public class OrganizationService {
     }
 
     @Transactional
+    public UserOrganizationRole addUserToOrganizationByRoleName(UUID organizationId, UUID userId, String roleName) {
+        Organization organization = organizationRepository.findById(organizationId)
+                .orElseThrow(() -> new RuntimeException("Organization not found with id: " + organizationId));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new RuntimeException("Role not found with name: " + roleName));
+
+        userOrganizationRoleRepository.findByUserIdAndOrganizationId(userId, organizationId).stream().findFirst()
+                .ifPresent(r -> { throw new RuntimeException("User already has a role in this organization."); });
+
+        UserOrganizationRole userOrgRole = UserOrganizationRole.builder()
+                .user(user)
+                .organization(organization)
+                .role(role)
+                .build();
+        return userOrganizationRoleRepository.save(userOrgRole);
+    }
+
+    @Transactional
     public UserOrganizationRole updateUserOrganizationRole(Long userOrgRoleId, Long newRoleId) {
         UserOrganizationRole userOrgRole = userOrganizationRoleRepository.findById(userOrgRoleId)
                 .orElseThrow(() -> new RuntimeException("UserOrganizationRole not found with id: " + userOrgRoleId));

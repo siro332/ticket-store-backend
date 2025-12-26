@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 @Data
 public class EventDetailsDto {
     private String status;
+    private String organizerId;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
 }

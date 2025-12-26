@@ -1,5 +1,6 @@
 package com.example.event_service.controller;
 
+import com.example.event_service.dto.EventWizardRequest;
 import com.example.event_service.model.Discount;
 import com.example.event_service.model.Event;
 import com.example.event_service.model.Seat;
@@ -41,6 +42,18 @@ public class EventController {
         return ResponseEntity.ok(eventService.createEvent(event));
     }
 
+    @PreAuthorize("hasRole('ORGANIZER')")
+    @PostMapping("/draft")
+    public ResponseEntity<Event> saveDraft(@RequestBody EventWizardRequest request) {
+        return ResponseEntity.ok(eventService.saveWizardDraft(request));
+    }
+
+    @PreAuthorize("hasRole('ORGANIZER')")
+    @PostMapping("/submit")
+    public ResponseEntity<Event> submitWizard(@RequestBody EventWizardRequest request) {
+        return ResponseEntity.ok(eventService.submitWizard(request));
+    }
+
     @PreAuthorize("hasAnyRole('ORGANIZER','ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<Event> update(@PathVariable Long id, @RequestBody Event event) {
@@ -76,6 +89,12 @@ public class EventController {
     @PutMapping("/{id}/status")
     public ResponseEntity<Event> updateStatus(@PathVariable Long id, @RequestParam Event.Status status) {
         return ResponseEntity.ok(eventService.updateStatus(id, status));
+    }
+
+    @GetMapping("/custom-url/exists")
+    public ResponseEntity<Boolean> customUrlExists(@RequestParam("customUrl") String customUrl,
+                                                   @RequestParam(value = "excludeEventId", required = false) Long excludeEventId) {
+        return ResponseEntity.ok(eventService.customUrlExists(customUrl, excludeEventId));
     }
 
     // TicketType management endpoints

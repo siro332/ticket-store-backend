@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
@@ -49,4 +50,7 @@ public interface EventRepository extends JpaRepository<Event, Long>, JpaSpecific
 
 
     List<Event> findByVenue_CityIgnoreCaseAndStartTimeAfterAndEndTimeBefore(String city, LocalDateTime startTime, LocalDateTime endTime);
+
+    Optional<Event> findByCustomUrl(String customUrl);
+    boolean existsByCustomUrl(String customUrl);
 }

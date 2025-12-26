@@ -16,6 +16,9 @@ public class EventDto {
     private Long id;
     private UUID organizerId; // New field: organizerId (UUID)
     private LocalDateTime startTime;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private String status;
     private Boolean allowTicketTransfer;
     private Boolean allowAttendeeNameChange;
     private Boolean refundEnabled;

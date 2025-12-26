@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,13 +31,46 @@ public class Event {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
 
+    private String eventCode;
+
+    @Column(columnDefinition = "LONGTEXT")
+    private String logoUrl;
+
+    @Column(columnDefinition = "LONGTEXT")
+    private String bannerUrl;
+
+    @Column(unique = true)
+    private String customUrl;
+
+    @Enumerated(EnumType.STRING)
+    private Privacy privacy;
+
     @ManyToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "venue_id")
     private Venue venue;
 
-    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<TicketType> ticketTypes;
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<TicketType> ticketTypes = new ArrayList<>();
 
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<EventShowtime> showtimes = new ArrayList<>();
+
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<TicketZone> ticketZones = new ArrayList<>();
+
+    @OneToOne(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private EventOrganizerInfo organizerInfo;
+
+    @OneToOne(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private EventPayoutInfo payoutInfo;
+
+    @OneToOne(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private EventInvoiceInfo invoiceInfo;
+
+    @Column(columnDefinition = "LONGTEXT")
     private String coverImage;
 
     @Enumerated(EnumType.STRING)
@@ -67,6 +101,7 @@ public class Event {
         if (refundEnabled == null) refundEnabled = false;
         if (refundDeadlineHours == null) refundDeadlineHours = 24;
         if (refundFeePercent == null) refundFeePercent = 0.0;
+        if (privacy == null) privacy = Privacy.PUBLIC;
     }
 
     @PreUpdate
@@ -76,5 +111,9 @@ public class Event {
 
     public enum Status {
         DRAFT, PENDING_APPROVAL, PUBLISHED, CANCELLED
+    }
+
+    public enum Privacy {
+        PUBLIC, PRIVATE
     }
 }

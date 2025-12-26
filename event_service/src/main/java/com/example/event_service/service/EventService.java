@@ -1,12 +1,22 @@
 package com.example.event_service.service;
 
 import com.example.event_service.dto.EventTransferPolicyDto;
+import com.example.event_service.dto.EventWizardRequest;
 import com.example.event_service.dto.ReservationDto;
+import com.example.event_service.dto.TicketConfigSyncRequest;
 import com.example.event_service.feign_client.OrderServiceClient;
+import com.example.event_service.feign_client.TicketServiceClient;
 import com.example.event_service.model.Discount;
 import com.example.event_service.model.Event;
+import com.example.event_service.model.EventInvoiceInfo;
+import com.example.event_service.model.EventOrganizerInfo;
+import com.example.event_service.model.EventPayoutInfo;
+import com.example.event_service.model.EventShowtime;
 import com.example.event_service.model.Seat;
+import com.example.event_service.model.ShowtimeTicketAllocation;
 import com.example.event_service.model.TicketType;
+import com.example.event_service.model.TicketZone;
+import com.example.event_service.model.Venue;
 import com.example.event_service.repository.DiscountRepository;
 import com.example.event_service.repository.EventRepository;
 import com.example.event_service.repository.SeatRepository;
@@ -23,9 +33,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -38,6 +53,7 @@ public class EventService {
     private final DiscountRepository discountRepository;
     private final SeatRepository seatRepository;
     private final OrderServiceClient orderServiceClient; // Inject Feign Client
+    private final TicketServiceClient ticketServiceClient;
 
     public List<Event> getAllEvents() {
         return eventRepository.findAll();
@@ -99,6 +115,18 @@ public class EventService {
     }
 
     @Transactional
+    public Event saveWizardDraft(EventWizardRequest request) {
+        return saveWizard(request, false);
+    }
+
+    @Transactional
+    public Event submitWizard(EventWizardRequest request) {
+        Event event = saveWizard(request, true);
+        syncTicketConfig(request, event);
+        return event;
+    }
+
+    @Transactional
     public Event approveEvent(Long id) {
         Event event = getById(id);
         if (event.getStatus() != Event.Status.PENDING_APPROVAL) {
@@ -119,6 +147,14 @@ public class EventService {
         eventRepository.deleteById(id);
     }
 
+    public boolean customUrlExists(String customUrl, Long excludeEventId) {
+        if (customUrl == null || customUrl.isBlank()) {
+            return false;
+        }
+        Optional<Event> existing = eventRepository.findByCustomUrl(customUrl);
+        return existing.isPresent() && (excludeEventId == null || !existing.get().getId().equals(excludeEventId));
+    }
+
     // Methods for TicketType management
     public TicketType addTicketTypeToEvent(Long eventId, TicketType ticketType) {
         Event event = getById(eventId);
@@ -133,6 +169,349 @@ public class EventService {
     public TicketType getTicketTypeById(Long id) {
         return ticketTypeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Ticket type not found"));
+    }
+
+    private Event saveWizard(EventWizardRequest request, boolean submit) {
+        if (request == null) {
+            throw new RuntimeException("Request payload is required.");
+        }
+        if (customUrlExists(getCustomUrl(request), request.getEventId())) {
+            throw new RuntimeException("Custom URL already exists.");
+        }
+        if (submit) {
+            validateWizardRequest(request);
+        }
+
+        Event event = request.getEventId() != null ? getById(request.getEventId()) : new Event();
+        if (request.getOrganizerId() != null) {
+            event.setOrganizerId(UUID.fromString(request.getOrganizerId()));
+        }
+        event.setEventCode(resolveEventCode(event.getEventCode(), request.getEventCode()));
+        event.setName(request.getName());
+        event.setCategory(request.getCategory());
+        event.setDescription(request.getDescription());
+        event.setLogoUrl(request.getLogoUrl());
+        event.setBannerUrl(request.getBannerUrl());
+        event.setCustomUrl(getCustomUrl(request));
+        event.setPrivacy(getPrivacy(request));
+
+        if (request.getCategory() != null && request.getCategory().equalsIgnoreCase("Online")) {
+            event.setVenue(null);
+        } else {
+            event.setVenue(mapVenue(event.getVenue(), request.getVenue()));
+        }
+
+        mapOrganizerInfo(event, request.getOrganizer());
+        mapPayoutInfo(event, request.getPayout());
+        mapInvoiceInfo(event, request.getInvoice());
+
+        List<EventShowtime> showtimes = mapShowtimes(event, request.getShowtimes());
+        List<TicketType> ticketTypes = mapTicketTypes(event, request.getTicketTypes());
+        mapTicketZones(event, request.getTicketDetails(), ticketTypes);
+        mapAllocations(showtimes, request.getAllocations(), ticketTypes);
+
+        event.setShowtimes(showtimes);
+        event.setTicketTypes(ticketTypes);
+
+        applyEventTimesFromShowtimes(event, showtimes);
+        event.setStatus(submit ? Event.Status.PENDING_APPROVAL : Event.Status.DRAFT);
+        return eventRepository.save(event);
+    }
+
+    private String resolveEventCode(String existing, String requested) {
+        if (requested != null && !requested.isBlank()) {
+            return requested;
+        }
+        if (existing != null && !existing.isBlank()) {
+            return existing;
+        }
+        return "EVT-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+    }
+
+    private String getCustomUrl(EventWizardRequest request) {
+        if (request.getSettings() == null) {
+            return null;
+        }
+        return request.getSettings().getCustomUrl();
+    }
+
+    private Event.Privacy getPrivacy(EventWizardRequest request) {
+        if (request.getSettings() == null || request.getSettings().getPrivacy() == null) {
+            return Event.Privacy.PUBLIC;
+        }
+        return request.getSettings().getPrivacy();
+    }
+
+    private Venue mapVenue(Venue existing, EventWizardRequest.Venue request) {
+        if (request == null) {
+            return null;
+        }
+        Venue venue = existing != null ? existing : new Venue();
+        venue.setName(request.getName());
+        venue.setProvince(request.getProvince());
+        venue.setDistrict(request.getDistrict());
+        venue.setWard(request.getWard());
+        venue.setStreetAddress(request.getStreetAddress());
+        venue.setCity(request.getProvince());
+        venue.setAddress(String.join(", ",
+                safe(request.getStreetAddress()),
+                safe(request.getWard()),
+                safe(request.getDistrict()),
+                safe(request.getProvince())).trim());
+        return venue;
+    }
+
+    private void mapOrganizerInfo(Event event, EventWizardRequest.Organizer organizer) {
+        if (organizer == null) {
+            event.setOrganizerInfo(null);
+            return;
+        }
+        EventOrganizerInfo info = event.getOrganizerInfo() != null ? event.getOrganizerInfo() : new EventOrganizerInfo();
+        info.setOrganizerCode(organizer.getOrganizerCode());
+        info.setOrganizerName(organizer.getOrganizerName());
+        info.setLogoUrl(organizer.getLogoUrl());
+        info.setDescription(organizer.getDescription());
+        info.setTermsAgreed(organizer.getTermsAgreed());
+        info.setAccountStatus(organizer.getAccountStatus());
+        info.setEvent(event);
+        event.setOrganizerInfo(info);
+    }
+
+    private void mapPayoutInfo(Event event, EventWizardRequest.Payout payout) {
+        if (payout == null) {
+            event.setPayoutInfo(null);
+            return;
+        }
+        EventPayoutInfo info = event.getPayoutInfo() != null ? event.getPayoutInfo() : new EventPayoutInfo();
+        info.setAccountHolderName(payout.getAccountHolderName());
+        info.setBankNumber(payout.getBankNumber());
+        info.setBankName(payout.getBankName());
+        info.setEvent(event);
+        event.setPayoutInfo(info);
+    }
+
+    private void mapInvoiceInfo(Event event, EventWizardRequest.Invoice invoice) {
+        if (invoice == null) {
+            event.setInvoiceInfo(null);
+            return;
+        }
+        EventInvoiceInfo info = event.getInvoiceInfo() != null ? event.getInvoiceInfo() : new EventInvoiceInfo();
+        info.setEnabled(invoice.getEnabled());
+        info.setCompanyName(invoice.getCompanyName());
+        info.setTaxCode(invoice.getTaxCode());
+        info.setAddress(invoice.getAddress());
+        info.setEvent(event);
+        event.setInvoiceInfo(info);
+    }
+
+    private List<EventShowtime> mapShowtimes(Event event, List<EventWizardRequest.Showtime> request) {
+        List<EventShowtime> showtimes = new ArrayList<>();
+        if (request == null) {
+            return showtimes;
+        }
+        for (EventWizardRequest.Showtime showtimeRequest : request) {
+            EventShowtime showtime = EventShowtime.builder()
+                    .code(showtimeRequest.getCode())
+                    .startTime(showtimeRequest.getStartTime())
+                    .endTime(showtimeRequest.getEndTime())
+                    .event(event)
+                    .build();
+            showtimes.add(showtime);
+        }
+        return showtimes;
+    }
+
+    private List<TicketType> mapTicketTypes(Event event, List<EventWizardRequest.TicketType> request) {
+        List<TicketType> ticketTypes = new ArrayList<>();
+        if (request == null) {
+            return ticketTypes;
+        }
+        for (EventWizardRequest.TicketType ticketTypeRequest : request) {
+            TicketType type = TicketType.builder()
+                    .code(ticketTypeRequest.getCode())
+                    .name(ticketTypeRequest.getName())
+                    .price(ticketTypeRequest.getPrice())
+                    .quota(ticketTypeRequest.getMaxQuantity())
+                    .purchaseLimit(ticketTypeRequest.getPurchaseLimit())
+                    .startSale(ticketTypeRequest.getSaleStart())
+                    .endSale(ticketTypeRequest.getSaleEnd())
+                    .description(ticketTypeRequest.getDescription())
+                    .event(event)
+                    .build();
+            ticketTypes.add(type);
+        }
+        return ticketTypes;
+    }
+
+    private void mapTicketZones(Event event, List<EventWizardRequest.TicketDetail> request, List<TicketType> ticketTypes) {
+        event.getTicketZones().clear();
+        if (request == null) {
+            return;
+        }
+        Map<String, TicketType> ticketTypeMap = new HashMap<>();
+        for (TicketType ticketType : ticketTypes) {
+            if (ticketType.getCode() != null) {
+                ticketTypeMap.put(ticketType.getCode(), ticketType);
+            }
+        }
+        List<TicketZone> zones = new ArrayList<>();
+        for (EventWizardRequest.TicketDetail detail : request) {
+            TicketZone zone = TicketZone.builder()
+                    .code(detail.getCode())
+                    .name(detail.getZoneName())
+                    .checkInTime(detail.getCheckInTime())
+                    .event(event)
+                    .ticketType(ticketTypeMap.get(detail.getTicketTypeCode()))
+                    .build();
+            zones.add(zone);
+        }
+        event.setTicketZones(zones);
+    }
+
+    private void mapAllocations(List<EventShowtime> showtimes, List<EventWizardRequest.Allocation> request, List<TicketType> ticketTypes) {
+        if (showtimes == null) {
+            return;
+        }
+        Map<String, EventShowtime> showtimeMap = new HashMap<>();
+        for (EventShowtime showtime : showtimes) {
+            if (showtime.getCode() != null) {
+                showtimeMap.put(showtime.getCode(), showtime);
+            }
+        }
+        Map<String, TicketType> ticketTypeMap = new HashMap<>();
+        for (TicketType ticketType : ticketTypes) {
+            if (ticketType.getCode() != null) {
+                ticketTypeMap.put(ticketType.getCode(), ticketType);
+            }
+        }
+        if (request == null) {
+            return;
+        }
+        for (EventWizardRequest.Allocation allocationRequest : request) {
+            EventShowtime showtime = showtimeMap.get(allocationRequest.getShowtimeCode());
+            if (showtime == null) {
+                continue;
+            }
+            ShowtimeTicketAllocation allocation = ShowtimeTicketAllocation.builder()
+                    .showtime(showtime)
+                    .ticketType(ticketTypeMap.get(allocationRequest.getTicketTypeCode()))
+                    .quantity(allocationRequest.getQuantity())
+                    .build();
+            showtime.getAllocations().add(allocation);
+        }
+    }
+
+    private void applyEventTimesFromShowtimes(Event event, List<EventShowtime> showtimes) {
+        if (showtimes == null || showtimes.isEmpty()) {
+            return;
+        }
+        event.setStartTime(showtimes.stream()
+                .map(EventShowtime::getStartTime)
+                .filter(t -> t != null)
+                .min(Comparator.naturalOrder())
+                .orElse(event.getStartTime()));
+        event.setEndTime(showtimes.stream()
+                .map(EventShowtime::getEndTime)
+                .filter(t -> t != null)
+                .max(Comparator.naturalOrder())
+                .orElse(event.getEndTime()));
+    }
+
+    private void validateWizardRequest(EventWizardRequest request) {
+        if (request.getName() == null || request.getName().isBlank()) {
+            throw new RuntimeException("Event name is required.");
+        }
+        if (request.getCategory() == null || request.getCategory().isBlank()) {
+            throw new RuntimeException("Event category is required.");
+        }
+        if (request.getOrganizer() == null || request.getOrganizer().getTermsAgreed() == null || !request.getOrganizer().getTermsAgreed()) {
+            throw new RuntimeException("Terms agreement is required.");
+        }
+        if (request.getShowtimes() == null || request.getShowtimes().isEmpty()) {
+            throw new RuntimeException("At least one showtime is required.");
+        }
+        if (request.getTicketTypes() == null || request.getTicketTypes().isEmpty()) {
+            throw new RuntimeException("At least one ticket type is required.");
+        }
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
+    }
+
+    private void syncTicketConfig(EventWizardRequest request, Event event) {
+        if (request == null || event == null) {
+            return;
+        }
+        try {
+            TicketConfigSyncRequest syncRequest = new TicketConfigSyncRequest();
+            syncRequest.setEventId(event.getId());
+            syncRequest.setEventCode(event.getEventCode());
+            syncRequest.setShowtimes(mapSyncShowtimes(request));
+            syncRequest.setTicketTypes(mapSyncTicketTypes(request));
+            syncRequest.setTicketDetails(mapSyncTicketDetails(request));
+            syncRequest.setAllocations(mapSyncAllocations(request));
+            ticketServiceClient.syncTicketConfig(syncRequest);
+        } catch (Exception ex) {
+            log.warn("Ticket config sync failed for event {}: {}", event.getId(), ex.getMessage());
+        }
+    }
+
+    private List<TicketConfigSyncRequest.Showtime> mapSyncShowtimes(EventWizardRequest request) {
+        if (request.getShowtimes() == null) {
+            return List.of();
+        }
+        return request.getShowtimes().stream().map(showtime -> {
+            TicketConfigSyncRequest.Showtime sync = new TicketConfigSyncRequest.Showtime();
+            sync.setCode(showtime.getCode());
+            sync.setStartTime(showtime.getStartTime());
+            sync.setEndTime(showtime.getEndTime());
+            return sync;
+        }).toList();
+    }
+
+    private List<TicketConfigSyncRequest.TicketType> mapSyncTicketTypes(EventWizardRequest request) {
+        if (request.getTicketTypes() == null) {
+            return List.of();
+        }
+        return request.getTicketTypes().stream().map(type -> {
+            TicketConfigSyncRequest.TicketType sync = new TicketConfigSyncRequest.TicketType();
+            sync.setCode(type.getCode());
+            sync.setName(type.getName());
+            sync.setPrice(type.getPrice());
+            sync.setMaxQuantity(type.getMaxQuantity());
+            sync.setSaleStart(type.getSaleStart());
+            sync.setSaleEnd(type.getSaleEnd());
+            sync.setDescription(type.getDescription());
+            return sync;
+        }).toList();
+    }
+
+    private List<TicketConfigSyncRequest.TicketDetail> mapSyncTicketDetails(EventWizardRequest request) {
+        if (request.getTicketDetails() == null) {
+            return List.of();
+        }
+        return request.getTicketDetails().stream().map(detail -> {
+            TicketConfigSyncRequest.TicketDetail sync = new TicketConfigSyncRequest.TicketDetail();
+            sync.setCode(detail.getCode());
+            sync.setZoneName(detail.getZoneName());
+            sync.setTicketTypeCode(detail.getTicketTypeCode());
+            sync.setCheckInTime(detail.getCheckInTime());
+            return sync;
+        }).toList();
+    }
+
+    private List<TicketConfigSyncRequest.Allocation> mapSyncAllocations(EventWizardRequest request) {
+        if (request.getAllocations() == null) {
+            return List.of();
+        }
+        return request.getAllocations().stream().map(allocation -> {
+            TicketConfigSyncRequest.Allocation sync = new TicketConfigSyncRequest.Allocation();
+            sync.setShowtimeCode(allocation.getShowtimeCode());
+            sync.setTicketTypeCode(allocation.getTicketTypeCode());
+            sync.setQuantity(allocation.getQuantity());
+            return sync;
+        }).toList();
     }
 
     @Transactional

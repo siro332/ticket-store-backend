@@ -18,6 +18,12 @@ const LoginPage: React.FC = () => {
     }
   }, [isAuthenticated, navigate]);
 
+  React.useEffect(() => {
+    if (authError) {
+      showNotification(authError, 'danger');
+    }
+  }, [authError, showNotification]);
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     console.log('LoginPage: handleSubmit called, attempting login...');
