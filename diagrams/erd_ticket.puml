@@ -10,6 +10,7 @@ entity "tickets" {
     event_id : BIGINT
     user_id : VARCHAR(255)
     seat_id : BIGINT
+    seat_label: VARCHAR(255)
     ticket_code : VARCHAR(255)
     attendee_name : VARCHAR(255)
     attendee_email : VARCHAR(255)
@@ -41,7 +42,7 @@ entity "ticket_transfers" {
 }
 
 entity "marketplace_listings" {
-    *id : BIGINT <<PK>>
+    *id : BINARY(16) <<PK>>
     --
     ticket_id : BIGINT <<FK>>
     seller_id : VARCHAR(255)
