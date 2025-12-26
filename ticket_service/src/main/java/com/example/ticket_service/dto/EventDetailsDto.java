@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 
 @Data
 public class EventDetailsDto {
+    private String name;
+    private String category;
     private String status;
     private String organizerId;
     private LocalDateTime startTime;
